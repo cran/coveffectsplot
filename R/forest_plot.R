@@ -26,6 +26,7 @@ which0 <- function(x) {
 #' @param interval_legend_text Pointinterval Legend text.
 #' @param legend_order Legend order. A four-element vector with the following
 #' items ordered in your desired order: "pointinterval", "ref", "area", "shape".
+#' if an item is absent the legend will be omitted.
 #' @param combine_area_ref_legend Combine reference and area legends if they
 #' share the same text?
 #' @param show_ref_area Show reference window?
@@ -48,7 +49,9 @@ which0 <- function(x) {
 #' @param show_table_facet_strip Show table facet strip?
 #' @param table_position Table position. Possible values: "right", "below", "none".
 #' @param plot_table_ratio Plot-to-table ratio. Suggested value between 1-5.
-#'
+#' @param vertical_dodge_height Amount of vertical dodging to apply on segments and table text.
+#' @param legend_space_x_mult Multiplier to adjust the spacing between legend items.
+
 #' @examples
 #' library(dplyr)
 #'
@@ -200,7 +203,9 @@ forest_plot <- function(
   x_range = NULL,
   show_table_facet_strip = FALSE,
   table_position = c("right", "below", "none"),
-  plot_table_ratio = 4)
+  plot_table_ratio = 4,
+  vertical_dodge_height = 0.8,
+  legend_space_x_mult = 1)
 {
 
   table_position <- match.arg(table_position)
@@ -243,12 +248,17 @@ forest_plot <- function(
   if (combine_area_ref_legend) {
     fill_pos <- linetype_pos
   }
+  
   guide_interval <- ggplot2::guide_legend("", order = interval_pos)
   guide_fill <- ggplot2::guide_legend("", order = fill_pos)
   guide_linetype <- ggplot2::guide_legend("", order = linetype_pos)
   guide_shape <- ggplot2::guide_legend("", order = shape_pos,
-                                       override.aes = list(linetype = 0, colour = "gray"))
-
+                                       override.aes = list(linetype = 0, colour = "gray"),reverse = TRUE)
+  if( interval_pos==0) guide_interval = FALSE
+  if( fill_pos==0) guide_fill = FALSE
+  if( linetype_pos==0) guide_linetype = FALSE
+  if( shape_pos==0) guide_shape = FALSE
+  
   data$label <- factor(data$label)
 
   main_plot <-
@@ -259,7 +269,7 @@ forest_plot <- function(
       xmax = "upper"
     )) +
     ggstance::geom_pointrangeh(
-      position = ggstance::position_dodgev(height = 0.75),
+      position = ggstance::position_dodgev(height = vertical_dodge_height),
       ggplot2::aes(color = interval_legend_text),
       size = 1,
       alpha = 1
@@ -291,11 +301,11 @@ forest_plot <- function(
     ) +
     ggplot2::scale_colour_manual("", breaks = interval_legend_text, values = interval_col) +
     ggplot2::scale_linetype_manual("", breaks = ref_legend_text, values = 2) +
-    ggplot2::scale_fill_manual("", breaks = area_legend_text, values = ref_area_col) +
+    ggplot2::scale_fill_manual("", breaks = area_legend_text, values = ref_area_col)+
     ggplot2::guides(colour = guide_interval,
                     linetype = guide_linetype,
                     fill = guide_fill,
-                    shape = guide_shape)
+                    shape = guide_shape )
 
   if (!show_ref_area) {
     main_plot <- main_plot +
@@ -345,7 +355,9 @@ forest_plot <- function(
       panel.grid.minor = ggplot2::element_line(colour = "gray", linetype = "dotted"),
       panel.grid.major = ggplot2::element_line(colour = "gray", linetype = "solid"),
       strip.background = ggplot2::element_rect(fill = strip_col),
-      strip.placement  = strip_placement
+      strip.placement  = strip_placement,
+      legend.spacing.x = ggplot2::unit(legend_space_x_mult*11, "pt"),
+      legend.margin = ggplot2::margin(t = 0, r = 0.1, l = -0.1, b = 0, unit='cm')
     ) +
     ggplot2::ggtitle("\n") +
     ggplot2::xlab(xlabel) +
@@ -376,7 +388,7 @@ forest_plot <- function(
           hjust = 0.5
         ),
         size = table_text_size,
-        position = ggstance::position_dodgev(height = 0.75)
+        position = ggstance::position_dodgev(height = vertical_dodge_height)
       )
 
     if (facet_switch != "none") {
