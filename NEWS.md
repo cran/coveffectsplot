@@ -1,8 +1,18 @@
+# coveffectsplot 0.0.3
+
+* added an option to return a list of plots to enable further modification to the ggplot(s) if need be
+* updated the vignette and examples to demo the new options
+* added possibility to choose on which facet to show strips for the table
+* fixed a bug that showed up with ggplot dev version by explicitly defining a data.frame to the data argument
+* minor ui tweaks to enable named colors in colourpicker
+
 # coveffectsplot 0.0.2
 
 * Removed reference to the old name of the package
 * updated vignette and docs
-* tweaked the order of the shape legends and height of vertical dodging
+* tweaked the order of the shape legends to reverse
+* modified default height of vertical dodging and added an option
+* added an option to control legend item x spacing
 
 
 # coveffectsplot 0.0.1

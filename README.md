@@ -38,7 +38,7 @@ Additionally, you might  want to have a covname with value BSV to illustrate and
 
 The example data show where does 90 and 50% of the patients will be based on the model BSV estimate for the selected paramname(s).
 
-The vignette [Introduction to coveffectsplot](https://cran.r-project.org/web/packages/coveffectsplot/vignettes/introduction_to_coveffectsplot.html) will walk you through the background and  how to compute and build the required data that the shiny app or the function `forest_plot`expects. There is some data management steps that the app does automatically choosing to call the function in script will require you to take responsibilty to build the table LABEL and to control the ordering of the variables.
+The vignette [Introduction to coveffectsplot](https://cran.r-project.org/web/packages/coveffectsplot/vignettes/introduction_to_coveffectsplot.html) will walk you through the background and  how to compute and build the required data that the shiny app or the function `forest_plot`expects. There is some data management steps that the app does automatically. Choosing to call the function will expect that you will take the responsibility to build the table LABEL and to control the ordering of the variables.
 
 ### Example using a real drug label data
 The prezista drug label data was extracted from the FDA label and calling the `forest_plot` function gives:
@@ -58,18 +58,20 @@ coveffectsplot::forest_plot(plotdata,
             interval_legend_text = "Median (points)\n90% CI (horizontal lines)",
             ref_legend_text = "Reference (vertical line)\n+/- 50% (gray area)",
             area_legend_text = "Reference (vertical line)\n+/- 50% (gray area)",
-            xlabel = "Fold Change Relative to Parameter",
+            xlabel = "Median 90%CI Fold Change Relative to Parameter",
             facet_formula = "covname~.",
             facet_switch = "both",
             facet_scales = "free",
             facet_space = "fixed",
             paramname_shape = TRUE,
             table_position = "right",
-            table_text_size = 5,
+            table_text_size = 4,
             plot_table_ratio = 4,
             vertical_dodge_height = 0.8,
             legend_space_x_mult = 0.1,
-            legend_order = c("ref", "area", "shape"))
+            legend_order = c("ref", "area", "shape"),
+            show_table_facet_strip = "none",
+            return_list = FALSE)
 ```
 ![example plot with the prezista dataset](./inst/shiny/img/prezista.png)
 

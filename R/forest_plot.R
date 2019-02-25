@@ -46,11 +46,15 @@ which0 <- function(x) {
 #' @param major_x_ticks X axis major ticks. Numeric vector.
 #' @param minor_x_ticks X axis minor ticks. Numeric vector.
 #' @param x_range Range of X values. Two-element numeric vector.
-#' @param show_table_facet_strip Show table facet strip?
+#' @param show_table_facet_strip Possible values: "none", "both", "y", "x"
+#' @param show_table_yaxis_tick_label Show table y axis ticks and labels?
 #' @param table_position Table position. Possible values: "right", "below", "none".
 #' @param plot_table_ratio Plot-to-table ratio. Suggested value between 1-5.
 #' @param vertical_dodge_height Amount of vertical dodging to apply on segments and table text.
 #' @param legend_space_x_mult Multiplier to adjust the spacing between legend items.
+#' @param return_list What to return if True a list of the main and table plots is returned
+#' instead of the gtable/plot.
+
 
 #' @examples
 #' library(dplyr)
@@ -78,7 +82,7 @@ which0 <- function(x) {
 #'             facet_formula = "covname~.",
 #'             facet_scales = "free_y",
 #'             facet_space = "free_y",
-#'             show_table_facet_strip = FALSE,
+#'             show_table_facet_strip = "none",
 #'             table_position = "right",
 #'             plot_table_ratio = 4)
 #'
@@ -108,7 +112,8 @@ which0 <- function(x) {
 #'             y_label_text_size = 10,
 #'             x_label_text_size = 10,
 #'             facet_switch = "both",
-#'             show_table_facet_strip = TRUE,
+#'             show_table_facet_strip = "both",
+#'             show_table_yaxis_tick_label = TRUE,
 #'             table_position = "below",
 #'             plot_table_ratio = 1)
 #'\dontrun{
@@ -127,7 +132,9 @@ which0 <- function(x) {
 #'             area_legend_text = "Reference (vertical line)\n+/- 20% limits (colored area)",
 #'             xlabel = "Fold Change Relative to RHZE",
 #'             facet_formula = "covname~paramname",
-#'             table_position = "below")
+#'             table_position = "below",
+#'             show_table_facet_strip = "both",
+#'             show_table_yaxis_tick_label = TRUE)
 #'
 #' # Example 4
 #' plotdata <- get_sample_data("dataforest.csv")
@@ -152,7 +159,9 @@ which0 <- function(x) {
 #'             facet_scales = "free",
 #'             facet_space = "fixed",
 #'             table_position = "below",
-#'             plot_table_ratio = 1)
+#'             plot_table_ratio = 1,
+#'             show_table_facet_strip = "both",
+#'             show_table_yaxis_tick_label = TRUE)
 #'
 #' # Example 5
 #'
@@ -168,7 +177,11 @@ which0 <- function(x) {
 #'             facet_scales = "free",
 #'             facet_space = "fixed",
 #'             paramname_shape = TRUE,
-#'             table_position = "below",
+#'             table_position = "none",
+#'             ref_area_col = rgb( col2rgb("gray50")[1], col2rgb("gray50")[2],col2rgb("gray50")[3],
+#'             max = 255, alpha = 0.1*255 ) ,
+#'             interval_col = "steelblue",
+#'             strip_col = "lightblue",
 #'             plot_table_ratio = 1)
 #'}
 #' @export
@@ -202,12 +215,14 @@ forest_plot <- function(
   minor_x_ticks = NULL,
   x_range = NULL,
   show_table_facet_strip = FALSE,
+  show_table_yaxis_tick_label = FALSE,
   table_position = c("right", "below", "none"),
   plot_table_ratio = 4,
   vertical_dodge_height = 0.8,
-  legend_space_x_mult = 1)
+  legend_space_x_mult = 1,
+  return_list = FALSE)
 {
-
+  ymax = ymin = x = fill = NULL
   table_position <- match.arg(table_position)
   legend_order <- match.arg(legend_order, several.ok = TRUE)
   facet_switch <- match.arg(facet_switch)
@@ -285,15 +300,19 @@ forest_plot <- function(
         ymax = Inf,
         fill = ref_area_col
       ) +
-      ggplot2::geom_ribbon(
-        x = 1,
-        ymax = 1,
-        ymin = 1,
-        ggplot2::aes(fill = area_legend_text),
-        size = 1
-      )  # fake ribbon for fill legend
-  }
-
+    ggplot2::geom_ribbon(
+      data = data.frame(x = 1, ymax = 1, ymin = 1 ,fill = area_legend_text),
+      ggplot2::aes(
+        x = x,
+        ymax = ymax,
+        ymin = ymin,
+        fill = fill
+      ),
+      size = 1,
+      inherit.aes = FALSE
+    ) 
+}
+# fake ribbon for fill legend
   main_plot <- main_plot +
     ggplot2::geom_vline(
       ggplot2::aes(xintercept = ref_value, linetype = ref_legend_text),
@@ -408,11 +427,15 @@ forest_plot <- function(
     table_plot <- table_plot +
       ggplot2::theme_bw(base_size = 26) +
       ggplot2::theme(
+        axis.text.y = ggplot2::element_text(
+          angle = 0,
+          size = y_label_text_size
+        ),
         strip.text.x = x.strip.text,
         strip.text.y = y.strip.text,
-        axis.title = ggplot2::element_blank(),
-        axis.text = ggplot2::element_blank(),
-        axis.ticks = ggplot2::element_blank(),
+        axis.title.x = ggplot2::element_blank(),
+        axis.text.x= ggplot2::element_blank(),
+        axis.ticks.x = ggplot2::element_blank(),
         panel.grid.major.x = ggplot2::element_blank(),
         panel.grid.minor.x = ggplot2::element_blank(),
         panel.grid.major.y = ggplot2::element_blank(),
@@ -425,13 +448,40 @@ forest_plot <- function(
       ggplot2::theme(legend.position = "none")
 
 
-    if (!show_table_facet_strip) {
+    if (show_table_facet_strip=="none") {
       table_plot <- table_plot +
         ggplot2::theme(
           strip.text = ggplot2::element_blank(),
           strip.background = ggplot2::element_blank()
         )
     }
+    
+    if (show_table_facet_strip=="y") {
+      table_plot <- table_plot +
+        ggplot2::theme(
+          strip.text.x = ggplot2::element_blank(),
+          strip.background.x = ggplot2::element_blank()
+        )
+    }
+    
+    if (show_table_facet_strip=="x") {
+      table_plot <- table_plot +
+        ggplot2::theme(
+          strip.text.y = ggplot2::element_blank(),
+          strip.background.y = ggplot2::element_blank()
+        )
+    }
+    
+    
+    if (!show_table_yaxis_tick_label) {
+      table_plot <- table_plot +
+        ggplot2::theme(
+          axis.title.y = ggplot2::element_blank(),
+          axis.text.y = ggplot2::element_blank(),
+          axis.ticks.y = ggplot2::element_blank()
+        )
+    }
+    
   }
 
   if (table_position == "none") {
@@ -451,7 +501,12 @@ forest_plot <- function(
       heights = c(plot_table_ratio, 1)
     )
   }
-
+if (return_list){
+  result <-  list(main_plot,table_plot)
+}
+  if (!return_list){
+  result <- result
+  }
   result
 }
 
