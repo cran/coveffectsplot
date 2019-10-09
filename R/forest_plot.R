@@ -36,6 +36,7 @@ which0 <- function(x) {
 #' @param interval_col Point range color.
 #' @param strip_col Strip background color.
 #' @param paramname_shape Map symbol to parameter(s)?
+#' @param legend_shape_reverse TRUE or FALSE. 
 #' @param facet_switch Facet switch to near axis. Possible values: "both", "y",
 #' "x", "none".
 #' @param facet_scales Facet scales. Possible values: "free_y", "fixed",
@@ -46,7 +47,10 @@ which0 <- function(x) {
 #' @param major_x_ticks X axis major ticks. Numeric vector.
 #' @param minor_x_ticks X axis minor ticks. Numeric vector.
 #' @param x_range Range of X values. Two-element numeric vector.
-#' @param show_table_facet_strip Possible values: "none", "both", "y", "x"
+#' @param logxscale  X axis log scale. Logical.
+#' @param show_table_facet_strip Possible values: "none", "both", "y", "x".
+#' @param table_facet_switch Table facet switch to near axis. Possible values: "both", "y",
+#' "x", "none". 
 #' @param show_table_yaxis_tick_label Show table y axis ticks and labels?
 #' @param table_position Table position. Possible values: "right", "below", "none".
 #' @param plot_table_ratio Plot-to-table ratio. Suggested value between 1-5.
@@ -78,6 +82,7 @@ which0 <- function(x) {
 #'             ref_legend_text = "Reference (vertical line)",
 #'             area_legend_text = "Reference (vertical line)",
 #'             xlabel = paste("Fold Change in", param, "Relative to Reference"),
+#'             logxscale = TRUE, major_x_ticks =c(0.1,1,1.5),
 #'             show_ref_area = FALSE,
 #'             facet_formula = "covname~.",
 #'             facet_scales = "free_y",
@@ -207,6 +212,7 @@ forest_plot <- function(
   interval_col = "blue",
   strip_col = "#E5E5E5",
   paramname_shape = FALSE,
+  legend_shape_reverse = FALSE,
   facet_switch = c("both", "y", "x", "none"),
   facet_scales = c("fixed", "free_y", "free_x", "free"),
   facet_space = c("fixed", "free_x", "free_y", "free"),
@@ -214,7 +220,9 @@ forest_plot <- function(
   major_x_ticks = NULL,
   minor_x_ticks = NULL,
   x_range = NULL,
-  show_table_facet_strip = FALSE,
+  logxscale = FALSE,
+  show_table_facet_strip = "none",
+  table_facet_switch = c("both", "y", "x", "none"),
   show_table_yaxis_tick_label = FALSE,
   table_position = c("right", "below", "none"),
   plot_table_ratio = 4,
@@ -226,6 +234,8 @@ forest_plot <- function(
   table_position <- match.arg(table_position)
   legend_order <- match.arg(legend_order, several.ok = TRUE)
   facet_switch <- match.arg(facet_switch)
+  table_facet_switch <- match.arg(table_facet_switch)
+  
   facet_scales <- match.arg(facet_scales)
   facet_space <- match.arg(facet_space)
   strip_placement <- match.arg(strip_placement)
@@ -268,7 +278,7 @@ forest_plot <- function(
   guide_fill <- ggplot2::guide_legend("", order = fill_pos)
   guide_linetype <- ggplot2::guide_legend("", order = linetype_pos)
   guide_shape <- ggplot2::guide_legend("", order = shape_pos,
-                                       override.aes = list(linetype = 0, colour = "gray"),reverse = TRUE)
+                                       override.aes = list(linetype = 0, colour = "gray"),reverse = legend_shape_reverse)
   if( interval_pos==0) guide_interval = FALSE
   if( fill_pos==0) guide_fill = FALSE
   if( linetype_pos==0) guide_linetype = FALSE
@@ -382,9 +392,12 @@ forest_plot <- function(
     ggplot2::xlab(xlabel) +
     ggplot2::ylab(ylabel)
 
+  main_plot <- main_plot +
+    ggplot2::scale_x_continuous(trans = ifelse(logxscale,"log","identity"))
+  
   if (length(major_x_ticks) || length(minor_x_ticks)) {
     main_plot <- main_plot +
-      ggplot2::scale_x_continuous(
+      ggplot2::scale_x_continuous(trans = ifelse(logxscale,"log","identity"),
         breaks = major_x_ticks,
         minor_breaks = minor_x_ticks
       )
@@ -410,12 +423,12 @@ forest_plot <- function(
         position = ggstance::position_dodgev(height = vertical_dodge_height)
       )
 
-    if (facet_switch != "none") {
+    if (table_facet_switch != "none") {
       table_plot <- table_plot +
         ggplot2::facet_grid(facet_formula,
                             scales = facet_scales,
                             space = facet_space,
-                            switch = facet_switch)
+                            switch = table_facet_switch)
     } else {
       table_plot <- table_plot +
         ggplot2::facet_grid(facet_formula,

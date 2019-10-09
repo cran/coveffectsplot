@@ -241,7 +241,7 @@ plotdata$label <- reorder(as.factor(plotdata$label) , c(1,3,2,4,5,6))
   symbol = "diamond"
   ),
   hoverinfo = "text",
-  text = ~ paste("</br> Mean: ",
+  text = ~ paste("</br> Median: ",
   paste(round(mid, 2)))
   ) %>%
   plotly::layout(
@@ -273,7 +273,7 @@ plotdata$label <- reorder(as.factor(plotdata$label) , c(1,3,2,4,5,6))
       y0 = 0, 
       y1 = 1, 
       line = list(width = 0),
-      fillcolor =  plotly::toRGB("black", alpha = 0.3)
+      fillcolor =  plotly::toRGB("black", alpha = 0.2)
   
   )
   )
@@ -293,6 +293,7 @@ png("./coveffectsplot.png",width =9 ,height = 6,units = "in",res=72)
             facet_scales = "free",
             facet_space = "fixed",
             paramname_shape = TRUE,
+            show_table_facet_strip = "none",
             table_position = "right",
             table_text_size=4,
             plot_table_ratio = 4,
@@ -316,8 +317,9 @@ png("./coveffectsplot2.png",width =9 ,height = 6,units = "in",res=72)
             facet_space = "fixed",
             paramname_shape = FALSE,
             table_position = "right",
-            table_text_size=4,
+            table_text_size = 4,
             plot_table_ratio = 4,
+            show_table_facet_strip = "none",
             legend_space_x_mult = 0.5,
             ref_area_col = rgb( col2rgb("gray50")[1], col2rgb("gray50")[2],col2rgb("gray50")[3],
              max = 255, alpha = 0.1*255 ) ,
@@ -326,7 +328,8 @@ png("./coveffectsplot2.png",width =9 ,height = 6,units = "in",res=72)
 egg::ggarrange(
       plotlist[[1]]+ 
    ggplot2::labs(x= expression(paste("Changes Relative to ",CL["subscript"]^alpha["beta"], " Reference"),sep=""))+
-      ggplot2::theme(strip.text.y =  ggplot2::element_text(colour="blue")),
+      ggplot2::theme(strip.text.y =  ggplot2::element_text(colour="blue"))+
+     ggplot2::scale_x_log10(),
        plotlist[[2]] ,
       nrow = 1,
       widths = c(4, 1)

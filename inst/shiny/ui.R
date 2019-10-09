@@ -96,9 +96,10 @@ fluidPage(
           checkboxInput('userxzoom', 'Custom X axis Range ?', value = FALSE),
           conditionalPanel(
             condition = "input.userxzoom" ,
-            numericInput("lowerxin",label = "Lower X Limit",value = 0,min=NA,max=NA,width='100%'),
+            numericInput("lowerxin",label = "Lower X Limit",value = 0.01,min=NA,max=NA,width='100%'),
             numericInput("upperxin",label = "Upper X Limit",value = 2,min=NA,max=NA,width='100%')
           ),
+          checkboxInput('logxscale', 'Log-scale X axis ?', value = FALSE),
           textInput("yaxistitle", label = "Y axis Title", value = ""),
           textInput("xaxistitle", label = "X axis Title", value = "")
           
@@ -137,6 +138,10 @@ fluidPage(
                             choices = c("none","both","y","x"),
                             selected = c("none"),
                             multiple = FALSE),
+              selectInput(  "tablefacetswitch", "Table Facet Switch to Near Axis:",
+                            choices = c("both","y","x","none"),
+                            selected = c("both"),
+                            multiple = FALSE),
               checkboxInput('showtableyaxisticklabel', 'Show Table y axis ticks/labels ?', value = FALSE),
               
 
@@ -162,7 +167,7 @@ fluidPage(
           colourpicker::colourInput("colourpointrange",
                                     "Point Range Colour:",
                                     value="blue",
-                                    showColour = "both",allowTransparent=TRUE, , returnName = TRUE),
+                                    showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           div( actionButton("colourpointrangereset", "Reset Point Range Colour"),
                style="text-align: right"),
 
@@ -193,7 +198,9 @@ fluidPage(
               multiple=TRUE,  options = list(
                 plugins = list('drag_drop')
               )),
-            checkboxInput('combineareareflegend', 'Combine Ref and Area Legends if they share the same text ?',value = TRUE)
+            checkboxInput('combineareareflegend', 'Combine Ref and Area Legends if they share the same text ?',value = TRUE),
+            checkboxInput('legendshapereverse', 'Reverse the order of shape legend items ?',value = FALSE)
+            
 
           )
         )
