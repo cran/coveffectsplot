@@ -28,7 +28,8 @@ fluidPage(
               width = '800px'
             ),
             checkboxInput('shapebyparamname', 'Change Symbol by Parameter(s) ?', value = TRUE),
-            
+            sliderInput("vdodgeheight", "Vertical Space Between Parameters(s)",
+                        min=0.5, max=2, value=0.8,width = '800px'),
             selectizeInput(
               "covariates",
               "Covariates Top to Bottom (Remove/Drag and Drop to Desired Order):",
@@ -60,8 +61,14 @@ fluidPage(
                              min = 0, max = 32, step = 1, value = 22),
                  sliderInput("facettextx", "Facet Text Size X",
                              min = 0, max = 32, step = 1, value = 22),
+                 sliderInput("facettextyangle", "Facet Text Angle Y",
+                             min = 90, max = 180+90, step = 90, value = 180),
+                 sliderInput("facettextxangle", "Facet Text Angle X",
+                             min = 0, max = 90, step = 90, value = 0),
+                 checkboxInput('boldfacettext', "Bold Facet Text", value = TRUE),
                  selectizeInput(  "stripplacement", "Strip Placement:",
                                   choices = c("inside","outside"),
+                                  selected = c("outside"),
                                   options = list(  maxItems = 1 )  ),
                  selectInput(  "facetswitch", "Facet Switch to Near Axis:",
                                choices = c("both","y","x","none"),
@@ -78,6 +85,8 @@ fluidPage(
           "X/Y Axes",
           sliderInput("ylablesize", "Y axis labels size", min=1, max=32, value=24,step=0.5),
           sliderInput("xlablesize", "X axis labels size", min=1, max=32, value=24,step=0.5),
+          checkboxInput('showyaxisgridlines', "Keep Y axis Gridlines", value = TRUE),
+          checkboxInput('showxaxisgridlines', "Keep X axis Gridlines", value = TRUE),
           checkboxInput('customxticks', 'Custom X axis Ticks ?', value = FALSE),
           conditionalPanel(
             condition = "input.customxticks" ,
@@ -121,16 +130,11 @@ fluidPage(
       2,
       tabsetPanel(
         tabPanel(
-          "Table/Other Options",
-          fluidRow(
-            column(
-              12,
-              hr(),
+          "Table Options",
               numericInput("sigdigits",label = "Significant Digits",value = 2,min=NA,max=NA),
-              sliderInput("tabletextsize", "Table Text Size", min=1, max=12,step=1, value=7),
-              
-
-              sliderInput("plottotableratio", "Plot to Table Ratio", min=1, max=5, value=4,step=0.5, animate = FALSE),
+              sliderInput("tabletextsize", "Table Text Size", min=1, max=12,step=0.5, value=7),
+              sliderInput("plottotableratio", "Plot to Table Ratio", min=1, max=5, value=4,step=0.25,
+                          animate = FALSE),
 
               selectInput('tableposition','Table Position:',
                           c("on the right" = "right", "below" = "below", "none" = "none") ),
@@ -143,67 +147,139 @@ fluidPage(
                             selected = c("both"),
                             multiple = FALSE),
               checkboxInput('showtableyaxisticklabel', 'Show Table y axis ticks/labels ?', value = FALSE),
-              
-
-              hr(),
-              checkboxInput('showrefarea', 'Show Reference Area?', value = TRUE),
-              conditionalPanel(condition = "input.showrefarea" ,
-                               uiOutput("refarea")),
-              sliderInput("height", "Plot Height", min=1080/4, max=1080, value=900, animate = FALSE),
-              sliderInput("vdodgeheight", "Vertical Dodging Height", min=0.5, max=2, value=0.8, animate = FALSE)
-              
-              )
-
-          )
+              checkboxInput('reservetablexaxislabelspace', 'Reserve Table x axis space ?', value = FALSE),
+              checkboxInput('tablepanelborder', 'Draw Table Panel Borders ?', value = TRUE)
         ),#tabpanel
         tabPanel(
-          "Colour/Legend Options",
+          "Reference Options",
+          numericInput("refvalue","Reference Line",value = 1,step = 0.1),
+          checkboxInput('showrefarea', 'Show Reference Area?', value = TRUE),
+          conditionalPanel(condition = "input.showrefarea" ,
+                           uiOutput("refarea")),
+          sliderInput("height", "Plot Height", min=1080/4, max=1080,
+                      value=900, animate = FALSE)
+          ),#tabpanel
+        
+        tabPanel(
+          "Colour/Legend Options/theme",
           colourpicker::colourInput("stripbackgroundfill",
                                     "Strip Background Fill:",
                                     value="#E5E5E5",
                                     showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           div( actionButton("stripbackfillreset", "Reset Strip Background Fill"),
                style="text-align: right"),
+          checkboxInput('removestrip', "Show Strip Background",value = TRUE),
           colourpicker::colourInput("colourpointrange",
                                     "Point Range Colour:",
                                     value="blue",
                                     showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           div( actionButton("colourpointrangereset", "Reset Point Range Colour"),
                style="text-align: right"),
+          colourpicker::colourInput("colourbsvrange",
+                                    "BSV Range Colour:",
+                                    value="red",
+                                    showColour = "both",allowTransparent=TRUE, returnName = TRUE),
+          div( actionButton("colourbsvrangereset", "Reset BSV Range Colour"),
+               style="text-align: right"),
 
           colourpicker::colourInput("fillrefarea",
                                     "Reference Area Fill:",
                                     value= "#BEBEBE50",
-                                    showColour = "both",allowTransparent=TRUE, , returnName = TRUE),
+                                    showColour = "both",allowTransparent=TRUE,
+                                    returnName = TRUE),
           div( actionButton("fillrefareareset", "Reset Reference Area Fill"),
                style="text-align: right"),
+          
+          colourpicker::colourInput("colorrefvalue",
+                                    "Reference Line Color:",
+                                    value= "black",
+                                    showColour = "both",allowTransparent=TRUE,
+                                    returnName = TRUE),
+          div( actionButton("colorrefvaluereset", "Reset Reference Line Color"),
+               style="text-align: right"),
+          
+          sliderInput("base_size", "Base size for the theme",
+                      min = 1, max = 30, step = 0.1, value = 22),
+          checkboxInput('theme_benrich', "Apply Ben's Theme",value = FALSE),
+          conditionalPanel(
+            condition = "input.theme_benrich",
+          textInput("custom_table_title", label ="Table Title",
+                    value="Median [95% CI]"),
+          sliderInput("table_title_size", "Size for Table Title",
+                      min = 1, max = 30, step = 0.1, value = 15)
+          ) ,
+          selectizeInput(
+            'legendposition',
+            label = "Legend Position",
+            choices = c("top","bottom","right","none"),
+            selected = c("top"),
+            multiple=FALSE)
+        ),#tabpanel
+        tabPanel(
+          "Custom Legend Ordering/Spacing",
+          div(style="display:inline-block",
+              numericInput("ncolinterval",label = "Number of columns for the Interval legend",
+                           value = 1,min=NA,max=NA,width='120px')),
+          div(style="display:inline-block",
+              numericInput("ncolshape",label = "Number of columns for the shape legend",
+                           value = 1,min=NA,max=NA,width='120px')),
+          
+          selectizeInput(
+            'legendordering',
+            label = paste("Drag/Drop to reorder","Colour, Ref, Area Legends"),
+            choices = c("pointinterval","ref","area","shape"),
+            selected = c("pointinterval","ref","area","shape"),
+            multiple=TRUE,  options = list(
+              plugins = list('drag_drop')
+            )),
+          checkboxInput('legendshapereverse',
+                        'Reverse the order of shape legend items ?',value = TRUE),
           sliderInput("legendspacex", "Multiplier for Space between Legends",
                       min = 0, max = 1.5, step = 0.1, value = 1),
-          checkboxInput('customlegendtitle', 'Customization of Legend items and ordering ?',value = FALSE),
-          conditionalPanel(
-            condition = "input.customlegendtitle",
-
-            textInput("customcolourtitle", label ="Pointinterval Legend text",
-                      value="Median (points)\\n95% CI (horizontal lines)"),
-            textInput("customlinetypetitle", label ="Ref Legend text",
-                      value="Reference (vertical line)\\nClinically relevant limits (colored area)"),
-            textInput("customfilltitle", label ="Area Legend text",
-                      value="Reference (vertical line)\\nClinically relevant limits (colored area)"),
-
-            selectizeInput(
-              'legendordering',
-              label = paste("Drag/Drop to reorder","Colour, Ref, Area Legends"),
-              choices = c("pointinterval","ref","area","shape"),
-              selected = c("pointinterval","ref","area","shape"),
-              multiple=TRUE,  options = list(
-                plugins = list('drag_drop')
-              )),
-            checkboxInput('combineareareflegend', 'Combine Ref and Area Legends if they share the same text ?',value = TRUE),
-            checkboxInput('legendshapereverse', 'Reverse the order of shape legend items ?',value = FALSE)
-            
-
-          )
-        )
+          numericInput("panelspacing",label = "Strip Panel Spacing",
+                       value = 5.5,min=0,step=0.1,
+                       max=20,width='100%'),
+          
+          div(style="display:inline-block",
+              numericInput("margintop",label = "Plot Top Margin",
+                           value = 0,min=0,max=NA,width='120px')),
+          div(style="display:inline-block",
+              numericInput("tabletop",label = "Table Top Margin",
+                           value = 0,min=0,max=NA,width='120px')),
+          div(style="display:inline-block",
+              numericInput("marginleft",label = "Plot Left Margin",
+                           value = 5.5,min=0,max=NA,width='120px')),
+          div(style="display:inline-block",
+              numericInput("tableleft",label = "Table Left Margin",
+                           value = 5.5,min=0,max=NA,width='120px')),
+          div(style="display:inline-block",
+              numericInput("marginright",label = "Plot Right Margin",
+                           value = 5.5,min=0,max=NA,width='120px')),
+         div(style="display:inline-block",
+              numericInput("tableright",label = "Table Right Margin",
+                           value = 5.5,min=0,max=NA,width='120px')),
+        div(style="display:inline-block",
+            numericInput("marginbottom",label = "Plot Bottom Margin",
+                         value = 0,min=0,max=NA,width='120px')),
+        div(style="display:inline-block",
+            numericInput("tablebottom",label = "Table Bottom Margin",
+                         value = 0,min=0,max=NA,width='120px'))
+        
+          
+        ),#tabpanel
+        tabPanel(
+          "Custom Legend Text",
+          textInput("customcolourtitle", label ="Pointinterval Legend text",
+                    value="Median (points)\\n95% CI (horizontal lines)"),
+          textInput("custombsvtitle", label ="BSV Legend text",
+                    value="BSV (points)\\nPrediction Intervals (horizontal lines)"),
+          textInput("customlinetypetitle", label ="Ref Legend text",
+                    value="Reference (vertical line)\\nClinically relevant limits (colored area)"),
+          textInput("customfilltitle", label ="Area Legend text",
+                    value="Reference (vertical line)\\nClinically relevant limits (colored area)"),
+          checkboxInput('combineareareflegend',
+                        'Combine Ref and Area Legends if they share the same text ?',value = TRUE)
+        )#tabpanel
       )  # tabsetpanel
     ) # closes the column 3
   )# fluidrow

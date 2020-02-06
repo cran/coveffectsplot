@@ -1,10 +1,14 @@
-## ----setup, include = FALSE----------------------------------------------
+## ----setup, include = FALSE---------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  dev.args = list(png = list(type = "cairo"))
 )
+library(coveffectsplot)
+suppressPackageStartupMessages( library(dplyr) )
 
-## ---- echo=TRUE, results='asis',fig.align = "center",fig.width = 6-------
+
+## ---- echo=TRUE, results='asis',fig.align = "center",fig.width = 6------------
 set.seed(657687)
 df <- data.frame(
 MASS::mvrnorm(n = 10000,
@@ -14,9 +18,9 @@ MASS::mvrnorm(n = 10000,
                                0.001,0.001,0.001,(1.5*0.05)^2),3,3,byrow = TRUE) 
 ))
 names(df) <- c("POPCL","dWTdCL","dSEXdCL")
-knitr::kable(head(df,5))
+knitr::kable(head(round(df,2),5))
 
-## ---- echo=FALSE, results='asis',fig.align = "center",fig.width = 6------
+## ---- echo=FALSE, results='asis',fig.align = "center",fig.width = 6-----------
 dflong <- tidyr::gather(df)
 
 ggplot2::ggplot(dflong,ggplot2::aes(x=value,fill=key))+
@@ -43,7 +47,7 @@ ggplot2::ggplot(dfcovlong,ggplot2::aes(x=value,fill=key))+
 
 
 dfcovlongquantile<- as.data.frame(
-  quantile(dfcovlong$value,probs=c(0,0.05,0.25,0.5,0.75,0.95,1))
+  round(quantile(dfcovlong$value,probs=c(0,0.05,0.25,0.5,0.75,0.95,1)),0)
 )
 names(dfcovlongquantile)<- "Weightquantilevalue"
 dfcovlongquantile$quantile<- rownames(dfcovlongquantile)
@@ -52,13 +56,14 @@ dfcovlongquantile$quantile<- rownames(dfcovlongquantile)
 dfcovlongquantiletable<- t(dfcovlongquantile)
 knitr::kable(dfcovlongquantiletable[1,,drop=FALSE],row.names=FALSE)
 
-## ---- echo=TRUE,fig.align = "center",fig.width = 6-----------------------
+## ---- echo=TRUE,fig.align = "center",fig.width = 6----------------------------
+set.seed(546789)
 CLBSVdistribution <- data.frame(CL= 10*exp(rnorm(10000,0,sd=0.09^0.5)))
 CLBSVdistribution$CLBSV<- CLBSVdistribution$CL/10
 
-## ---- echo=FALSE,fig.align = "center",fig.width = 6----------------------
+## ---- echo=FALSE,fig.align = "center",fig.width = 6---------------------------
 dfbsv<- as.data.frame(
-  quantile(CLBSVdistribution$CLBSV,probs=c(0,0.05,0.25,0.5,0.75,0.95,1)))
+  round( quantile(CLBSVdistribution$CLBSV,probs=c(0,0.05,0.25,0.5,0.75,0.95,1)),1))
 names(dfbsv)<- "BSVquantilevalue"
 dfbsv$quantile<- rownames(dfbsv)
 BSVLINE1<- data.frame(
@@ -96,8 +101,10 @@ ggplot2::ggplot(data= CLBSVdistribution)+
 
 dfbsvtable<- t(dfbsv)
 knitr::kable(dfbsvtable[1,,drop=FALSE],row.names=FALSE)
+#bayestestR::hdi(CLBSVdistribution$CLBSV,ci = c(.50, .90))
+#0.55, 0.74, 1 , 1.12, 1.53
 
-## ----fig.width= 7--------------------------------------------------------
+## ----fig.width= 7-------------------------------------------------------------
 dfeffects <- df
 dfeffects$REF <- dfeffects$POPCL/ median(dfeffects$POPCL)
 dfeffects$SEX_FEMALE_WT_50 <- dfeffects$REF*(50/70)^dfeffects$dWTdCL
@@ -139,7 +146,7 @@ ggridges::stat_density_ridges(
   ggplot2::theme_bw()+
   ggplot2::labs(x="Effects Relative to parameter reference value",y="")
 
-## ----fig.width= 7--------------------------------------------------------
+## ----fig.width= 7-------------------------------------------------------------
 ggplot2::ggplot(dfeffects)+
   ggplot2::geom_density(ggplot2::aes(x=REF,y=..scaled..,col="a.Uncertainty\nRSE=5%"))+
   ggplot2::geom_density(data=dfcovlong,
@@ -155,7 +162,7 @@ ggplot2::ggplot(dfeffects)+
   ggplot2::labs(color="",x="Effects Relative to parameter reference value",y= "Scaled Density")
 
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 dfeffects$SEX_Male_WT_90<- NULL
 dfeffectslong<- tidyr::gather(dfeffects)
 dfeffectslong<- dplyr::group_by(dfeffectslong,key)
@@ -188,7 +195,7 @@ plotdata<- plotdata[,c("paramname","covname","label","mid","lower","upper","LABE
 knitr::kable(plotdata)
 
 
-## ----fig.width=7---------------------------------------------------------
+## ----fig.width=7--------------------------------------------------------------
 plotdata$covname <- as.factor(plotdata$covname)
 plotdata$covname <- reorder(plotdata$covname , c(3,4,4,2,1,1))
 
@@ -213,72 +220,7 @@ plotdata$label <- reorder(as.factor(plotdata$label) , c(1,3,2,4,5,6))
                 colour="",linetype="")+
   ggplot2::theme_bw()
 
-  
-  
-  suppressPackageStartupMessages( library(dplyr) )
-  plotdata<- plotdata[ c(3,2,1,4,5,6),]
-
-  plotly::plot_ly(plotdata) %>%
-  plotly::add_segments(
-  x = ~ round(lower, 2),
-  xend = ~ round(upper, 2),
-  y = ~ label,
-  yend = ~ label,
-  name = '90%CI',
-  line = list(color = plotly::toRGB("blue", alpha = 0.5), width = 5),
-  hoverinfo = "text",
-  text = ~ paste("</br> 90%CI: ",
-  paste(round(lower, 2), round(upper, 2)))
-  ) %>%
-  
-  plotly::add_markers(
-  x = ~ round(mid, 2),
-  y = ~ label,
-  name = "Median",
-  marker  = list(
-  color = plotly::toRGB("black", alpha = 0.3),
-  size = 20,
-  symbol = "diamond"
-  ),
-  hoverinfo = "text",
-  text = ~ paste("</br> Median: ",
-  paste(round(mid, 2)))
-  ) %>%
-  plotly::layout(
-  xaxis = list(
-  title = 'Effects Relative to Reference',
-  ticks = "outside",
-  autotick = TRUE,
-  ticklen = 5,
-  gridcolor = plotly::toRGB("gray50"),
-  showline = TRUE
-  ) ,
-  yaxis = list (
-  title = '' ,
-  autorange = TRUE, 
-  type = "category",
-  categoryorder = "trace", 
-  ticks = "outside",
-  autotick = TRUE,
-  ticklen = 5,
-  gridcolor = plotly::toRGB("gray50"),
-  showline = TRUE
-  ),
-     shapes =list(
-      type = "rect", 
-      x0 = 0.8, 
-      x1 = 1.25, 
-      xref = "x",
-      yref = "paper",
-      y0 = 0, 
-      y1 = 1, 
-      line = list(width = 0),
-      fillcolor =  plotly::toRGB("black", alpha = 0.2)
-  
-  )
-  )
-
-## ----dpi = 72------------------------------------------------------------
+## ----dpi = 72-----------------------------------------------------------------
 png("./coveffectsplot.png",width =9 ,height = 6,units = "in",res=72)
  coveffectsplot::forest_plot(plotdata,
             ref_area = c(0.8, 1/0.8),
@@ -301,15 +243,76 @@ png("./coveffectsplot.png",width =9 ,height = 6,units = "in",res=72)
             return_list = FALSE)
 dev.off()
 
-## ----dpi = 72------------------------------------------------------------
+## ----fig.width=7 ,eval=FALSE--------------------------------------------------
+#  
+#    plotdata<- plotdata[ c(3,2,1,4,5,6),]
+#    plotly::plot_ly(plotdata) %>%
+#    plotly::add_segments(
+#    x = ~ round(lower, 2),
+#    xend = ~ round(upper, 2),
+#    y = ~ label,
+#    yend = ~ label,
+#    name = '90%CI',
+#    line = list(color = plotly::toRGB("blue", alpha = 0.5), width = 5),
+#    hoverinfo = "text",
+#    text = ~ paste("</br> 90%CI: ",
+#    paste(round(lower, 2), round(upper, 2)))
+#    ) %>%
+#    plotly::add_markers(
+#    x = ~ round(mid, 2),
+#    y = ~ label,
+#    name = "Median",
+#    marker  = list(
+#    color = plotly::toRGB("black", alpha = 0.3),
+#    size = 20,
+#    symbol = "diamond"
+#    ),
+#    hoverinfo = "text",
+#    text = ~ paste("</br> Median: ",
+#    paste(round(mid, 2)))
+#    ) %>%
+#    plotly::layout(
+#    xaxis = list(
+#    title = 'Effects Relative to Reference',
+#    ticks = "outside",
+#    autotick = TRUE,
+#    ticklen = 5,
+#    gridcolor = plotly::toRGB("gray50"),
+#    showline = TRUE
+#    ) ,
+#    yaxis = list (
+#    title = '' ,
+#    autorange = TRUE,
+#    type = "category",
+#    categoryorder = "trace",
+#    ticks = "outside",
+#    autotick = TRUE,
+#    ticklen = 5,
+#    gridcolor = plotly::toRGB("gray50"),
+#    showline = TRUE
+#    ),
+#       shapes =list(
+#        type = "rect",
+#        x0 = 0.8,
+#        x1 = 1.25,
+#        xref = "x",
+#        yref = "paper",
+#        y0 = 0,
+#        y1 = 1,
+#        line = list(width = 0),
+#        fillcolor =  plotly::toRGB("black", alpha = 0.2)
+#    )
+#    )
+
+## ----dpi = 72-----------------------------------------------------------------
 png("./coveffectsplot2.png",width =9 ,height = 6,units = "in",res=72)
  plotlist<- coveffectsplot::forest_plot(plotdata,
             ref_area = c(0.8, 1/0.8),
             x_facet_text_size = 13,
             y_facet_text_size = 13,
             interval_legend_text = "Median (points)\n90% CI (horizontal lines)",
-            ref_legend_text = "Reference (vertical line)\n+/- 20% ratios (gray area)",
-            area_legend_text = "Reference (vertical line)\n+/- 20% ratios (gray area)",
+            ref_legend_text = "Reference\n(vertical line)\n+/- 20% ratios\n(gray area)",
+            area_legend_text = "Reference\n(vertical line)\n+/- 20% ratios\n(gray area)",
             xlabel = "Fold Change Relative to Parameter",
             facet_formula = "covname~.",
             facet_switch = "both",
@@ -327,9 +330,10 @@ png("./coveffectsplot2.png",width =9 ,height = 6,units = "in",res=72)
             return_list = TRUE)
 egg::ggarrange(
       plotlist[[1]]+ 
-   ggplot2::labs(x= expression(paste("Changes Relative to ",CL["subscript"]^alpha["beta"], " Reference"),sep=""))+
-      ggplot2::theme(strip.text.y =  ggplot2::element_text(colour="blue"))+
-     ggplot2::scale_x_log10(),
+   ggplot2::labs(x= expression(paste("Changes Relative to ",
+                                     CL["subscript"]^alpha["beta"], " Reference"),
+                               sep=""))+
+      ggplot2::theme(strip.text.y =  ggplot2::element_text(colour="blue")),
        plotlist[[2]] ,
       nrow = 1,
       widths = c(4, 1)
