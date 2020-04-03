@@ -30,22 +30,32 @@ expand.modelframe <- function(..., rv, covcol="covname") {
   do.call(rbind, res)
 }
 
+expit <- function(x) exp(x)/ (1 + exp(x) )
+ 
 
 ## ----exprespmodel, collapse=TRUE----------------------------------------------
 exprespmodel <- '
 $PLUGIN Rcpp
-$PARAM
-TVCL = 10, WTCL = 0.75,
-TVEMAX = 5, SEVEMAX = 3,AUC50 = 10,
-BASEP = 0.1,
-WT=70, SEV = 0,DOSE = 75
-$OMEGA
-0.1 
+$PARAM @annotated
+TVCL    : 10  : Clearance CL (L/h)
+WTCL    : 0.75: Weight on CL (ref. 70 kg)
+TVEMAX  : 5   : Maximum Drug Effect
+SEVEMAX : 3   : Severity Reduction of Drug Effect
+AUC50   : 7.5 : Area Under the Curve providing half maximal response
+BASEP   : 0.1 : Baseline Probability of Response 
+
+$PARAM @annotated // reference values for covariate
+WT      : 70  : Weight (kg)
+SEV     : 0   : Sex (0=Female, 1=Male)
+DOSE    : 75  : Dose (mg)
+$OMEGA @annotated @block
+nCL     :0.09 : ETA on CL
+
+
 $PRED
 double CL = TVCL *
     pow((WT/70.0), WTCL)*exp(ETA(1)); 
-
-double EMAX = TVEMAX + SEVEMAX*(SEV == 1) ; 
+double EMAX = TVEMAX - SEVEMAX*(SEV == 1) ; 
 double Intercept = log(BASEP/(1-BASEP));
 capture CLi = CL;
 capture AUC = DOSE/CL;
@@ -53,33 +63,127 @@ capture LGST = Intercept + (EMAX*AUC/(AUC50+AUC));
 capture P1 = 1/(1+exp(-LGST));
 capture DV = R::runif(0,1)< P1 ? 1 : 0;
 '
+# the typical probability from the model parameters will be :
+TypicalProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*75/10/(7.5+75/10)))))
+MaxProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*750/10/(7.5+750/10)))))
+MinProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*0/10/(7.5+0/10)))))
+
+
 modexprespsim <- mcode("exprespmodel", exprespmodel)
-simdata <-  expand.idata(SEV=c(0,1),
-               DOSE = c(0,25,50,75),
+simdata <-  expand.idata(SEV=c(0),
+               DOSE = c(0,75),
                ID = 1:1000) %>% 
-  dplyr::mutate(WT = exp(rnorm(n(),log(70),0.3)))
+  dplyr::mutate(WT = 70) #exp(rnorm(n(),log(70),0.3)
 set.seed(466548)
 simout <- modexprespsim %>%
   data_set(simdata) %>%
-  zero_re() %>% 
   carry.out(WT, DOSE, SEV) %>%
   mrgsim()%>%
   as.data.frame
 
 ## ----exprespmodeplotl, collapse=TRUE------------------------------------------
-ggplot(simout, aes(AUC,DV,col=factor(SEV))) +
-  facet_grid(~cut_interval(WT,2))+
-  geom_point()+
-  geom_smooth(method = "glm",se=FALSE,
-              method.args = list(family = "binomial"))+
-  labs(color="Severity",y="Probability of Being Cured")+
+WT_names <- c(
+  '70'="Weight: 70 kg"
+)
+SEV_names <- c(
+  '0'="Severity: 0 (Not Severe)"
+)
+probplot<- ggplot(simout, aes(AUC,DV,linetype=factor(SEV))) +
+  facet_grid( WT~SEV,labeller=labeller(WT=WT_names,SEV=SEV_names))+
+  geom_point(position=position_jitter(height=0.02,width=0.1),
+             aes(color=factor(DOSE)),size=1,alpha=0.5)+
+  geom_line(aes(y=P1),color="black",size=1.1)+
+  geom_label(data=data.frame(
+    x=9,y=TypicalProb,label=paste(round(100*TypicalProb,1),"%"),SEV=0),
+    aes(x=x,y=y,label=label),fill="transparent")+
+  geom_label(data=data.frame(
+    x=0.37,y=0.1,label=paste(round(100*0.1,1),"%"),SEV=0),
+    aes(x=x,y=y,label=label),fill="transparent")+
+  labs(color="Dose (mg)",y="Probability of Response",
+       linetype="Severity")+
   theme_bw() + 
   theme(legend.position = "top")
+probplot
+
+## ----bsvrangeplot, collapse=TRUE----------------------------------------------
+simoutbsvplacebo <- simout %>% 
+  filter(DOSE==0)%>% 
+  mutate(LGST =LGST)%>%
+  gather(paramname, paramvalue,LGST,P1)%>%
+  group_by(paramname)%>%
+  summarize(P50 = quantile(paramvalue, 0.5)
+)
+simoutbsv <- simout %>% 
+  mutate(logodds =LGST)%>% 
+  filter(DOSE==75)
+# the probability of response at the typical AUC
+simoutbsvlong  <- simoutbsv  %>%
+  mutate(P1std=P1/TypicalProb) %>% 
+  gather(paramname, paramvalue,P1std,P1)
+
+
+yvar_names <- c(
+  'P1std'="Standardized Probability",
+  'P1'="Probability"
+)
+
+pbsvranges<-  ggplot(simoutbsvlong, aes(
+        x      = paramvalue,
+        y      = paramname,
+        fill   = factor(..quantile..),
+        height = ..ndensity..)) +
+  facet_wrap(paramname~. , scales="free", ncol=1,
+             labeller=labeller(paramname=yvar_names) ) +
+  stat_density_ridges(
+    geom="density_ridges_gradient", calc_ecdf=TRUE,
+    quantile_lines=TRUE, rel_min_height=0.001, scale=0.9,
+    quantiles=c(0.05, 0.25, 0.5, 0.75, 0.95)) +
+  scale_fill_manual(
+    name="Probability",
+    values=c("white", "#FF000050", "#FF0000A0", "#FF0000A0", "#FF000050", "white"),
+    labels = c("(0, 0.05]", "(0.05, 0.25]",
+             "(0.25, 0.5]", "(0.5, 0.75]",
+             "(0.75, 0.95]", "(0.95, 1]")) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.text.y     = element_blank(),
+    axis.ticks.y    = element_blank(),
+    axis.title.y    = element_blank()) +
+  labs(x="Parameters", y="") +
+  scale_x_log10() +
+  coord_cartesian(expand=FALSE)
+
+pbsvranges
+
+
+simoutbsvranges <- simoutbsvlong %>%
+  group_by(paramname)%>%
+  summarize(
+   P05 = quantile(paramvalue, 0.05),
+    P25 = quantile(paramvalue, 0.25),
+    P50 = quantile(paramvalue, 0.5),
+    P75 = quantile(paramvalue, 0.75),
+    P95 = quantile(paramvalue, 0.95))
+simoutbsvranges
+
+## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
+# probplot <-  probplot +theme_bw(base_size=18)+
+#    theme(legend.position = "top")
+# pbsvranges <- pbsvranges+theme_bw(base_size=22)+
+#   theme(
+#     legend.position = "none",
+#     axis.text.y     = element_blank(),
+#     axis.ticks.y    = element_blank(),
+#     axis.title.y    = element_blank())
+#  ggsave(plot = egg::ggarrange(probplot , pbsvranges,ncol=2),
+#         "Figure_8_1.png", device="png",type="cairo-png",width = 10, height = 5)
 
 ## ---- collapse=TRUE-----------------------------------------------------------
+set.seed(678549)
 thmeans <- c(10,0.75, #TVCL WTCL
              5,3, # TVEMAX  SEVEMAX
-             10, # AUC50
+             7.5, # AUC50
               0.1) #BASEP
 thvariances<- (thmeans*0.15)^2
 thecorrelations <- matrix(ncol=length(thmeans),nrow=length(thmeans))
@@ -97,7 +201,7 @@ sim_parameters<- as.data.frame(sim_parameters)
 reference.values <- data.frame(WT = 70, DOSE = 75, SEV = 0 )   
 covcomb <- expand.modelframe(
   WT  = c(50,60,70,80,90),
-  DOSE = c(0,50,75,100),
+  DOSE = c(0,25,50,75,100,125,150),
   SEV = c(0,1),
   rv = reference.values)
 covcomb <- covcomb[!duplicated(
@@ -119,19 +223,33 @@ for(i in 1:nsim) {
     data_set(data.all) %>%
     carry.out(CL,WT, DOSE, SEV, AUC) %>%
     zero_re() %>% 
-    mrgsim()%>%
-  as.data.frame
+    mrgsim()
   dfsimunc <- as.data.frame(out%>% mutate(rep = i) )
   iter_sims <- rbind(iter_sims,dfsimunc)
 }
 
-ggplot(iter_sims, aes(DOSE,P1,col=factor(SEV) ) )+
+## ---- collapse=TRUE-----------------------------------------------------------
+stdprobplot<- ggplot(iter_sims, aes(DOSE,P1,col=factor(SEV) ) )+
   geom_point(aes(group=interaction(ID,rep)),alpha=0.5,size=3)+
-  facet_grid(SEV~ WT,labeller = label_both)
+  geom_hline(yintercept=TypicalProb)+
+  facet_grid(SEV~ WT,labeller = label_both)+
+  labs(y="Probability of Response", colour="Severity")
+stdprobplot
 
+## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
+#  stdprobplot<-  stdprobplot+
+#   theme(axis.title.y = element_text(size=15),
+#         legend.position = c(0.8,0.2))+
+#   scale_y_continuous( sec.axis = sec_axis(~ . /TypicalProb,
+#                                           name = "Standardized Probability"))
+# stdprobplot
+#   ggsave("Figure_8_2.png", device="png",type="cairo-png",
+#          width = 7, height = 4)
+
+## ---- fig.height= 7, collapse=TRUE--------------------------------------------
 iter_sims <- iter_sims %>%
-  mutate(LGST = exp(LGST))%>%
-  gather(paramname,paramvalue,P1,LGST)%>% 
+  mutate(P1std=P1/TypicalProb)%>%
+  gather(paramname,paramvalue,P1std)%>% 
   ungroup() %>% 
   dplyr::mutate( covname = case_when(
     ID== 1 ~ "Weight",
@@ -142,62 +260,119 @@ iter_sims <- iter_sims %>%
     ID== 6 ~ "DOSE",
     ID== 7 ~ "DOSE",
     ID== 8 ~ "DOSE",
-    ID== 9 ~ "SEV"
+    ID== 9 ~ "DOSE",
+    ID== 10 ~ "DOSE",
+    ID== 11 ~ "DOSE",
+    ID== 12 ~ "SEV"
   ),
   covvalue =case_when(
     ID== 1 ~ paste(WT,"kg"), 
     ID== 2 ~ paste(WT,"kg"),
-    ID== 3 ~ "70 kg\nSevere\n75 mg",
+    ID== 3 ~ "70 kg\nNot Severe\n75 mg",
     ID== 4 ~ paste(WT,"kg"),
     ID== 5 ~ paste(WT,"kg"),
     ID== 6 ~ paste(DOSE,"mg"),
     ID== 7 ~ paste(DOSE,"mg"),
     ID== 8 ~ paste(DOSE,"mg"),
-    ID== 9 ~ "Not Severe"
+    ID== 9 ~ paste(DOSE,"mg"),
+    ID== 10 ~ paste(DOSE,"mg"),
+    ID== 11 ~ paste(DOSE,"mg"),
+    ID== 12 ~ "Severe"
   ) )
 iter_sims$covname <-factor(as.factor(iter_sims$covname ),
-                          levels =  c("SEV","Weight","DOSE","REF"))
+                          levels =  c("Weight","DOSE","SEV","REF"))
 iter_sims$covvalue <- factor(as.factor(iter_sims$covvalue),
-                          levels =  c("0 mg","50 mg","100 mg",
+                          levels =  c("0 mg","25 mg","50 mg",
+                                      "100 mg","125 mg","150 mg",
                           "50 kg","60 kg","80 kg", "90 kg",
-                          "70 kg\nSevere\n75 mg",  "Not Severe"))
+                          "70 kg\nNot Severe\n75 mg",  "Severe"))
 
-coveffectsdatacovrep <- iter_sims %>%
-  dplyr::group_by(paramname,ID,WT,DOSE,SEV,covname,covvalue) %>% 
-  dplyr::summarize(
-    mid= median(paramvalue),
-    lower= quantile(paramvalue,0.05),
-    upper = quantile(paramvalue,0.95))
-
-yvar_names <- c(
-  'LGST'="Odds Ratio",
-  'P1'="Probability"
-)
 
 ggplot(iter_sims,aes(x=paramvalue,y=covvalue))+
   stat_density_ridges(aes(fill=factor(..quantile..),height=..ndensity..),
     geom = "density_ridges_gradient", calc_ecdf = TRUE,
     quantile_lines = TRUE, rel_min_height = 0.001,scale=0.9,
-    quantiles = c(0.05,0.25,0.5,0.75, 0.95))+
+    quantiles = c(0.025,0.5, 0.975))+
     facet_grid(covname~paramname,scales="free",switch="both",
              labeller = labeller(paramname=yvar_names))+ 
   scale_fill_manual(
-    name = "Probability", values = c("#FF0000A0",
-                                     "#0000FFA0", "white","white",
-                                     "#0000FFA0","#FF0000A0"),
-    labels = c("(0, 0.05]", "(0.05, 0.25]",
-               "(0.25, 0.5]","(0.5, 0.75]",
-               "(0.75, 0.95]","(0.95, 1]")
+    name = "Probability", values = c("white","#0000FFA0", "#0000FFA0","white"),
+    labels = c("(0, 0.025]","(0.025, 0.5]","(0.5, 0.975]","(0.975, 1]")
   )+
   theme_bw()+
   theme(axis.title = element_blank(),strip.placement = "outside")
 
-## ----plot2, collapse=TRUE-----------------------------------------------------
+## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
+  #   last_plot()+theme_bw(base_size = 16)+
+  # theme(legend.position = "none",
+  #       axis.title = element_blank(),strip.placement = "outside")
+  #  ggsave("Figure_8_3.png", device="png",type="cairo-png",
+  #         width= 7, height = 6,dpi=72)
 
-ggplot(coveffectsdatacovrep,
-       aes(x=mid,y=covvalue))+
-  geom_pointrangeh(aes(xmin=lower,xmax=upper))+
-facet_grid(covname~paramname,scales="free",switch="both",
-             labeller = labeller(paramname=yvar_names)) +
-  theme(axis.title = element_blank(),strip.placement = "outside")
+## ----plot3, collapse=TRUE-----------------------------------------------------
+coveffectsdatacovrep <- iter_sims %>%
+  dplyr::group_by(paramname,ID,WT,DOSE,SEV,covname,covvalue) %>% 
+  dplyr::summarize(
+    mid= median(paramvalue),
+    lower= quantile(paramvalue,0.025),
+    upper = quantile(paramvalue,0.975))%>% 
+  dplyr::filter(!is.na(mid))
+simoutbsvranges<-simoutbsvranges[simoutbsvranges$paramname=="P1std",]
+
+coveffectsdatacovrepbsv <- coveffectsdatacovrep[coveffectsdatacovrep$covname=="REF",]
+coveffectsdatacovrepbsv$covname <- "BSV"
+coveffectsdatacovrepbsv$covvalue <- "90% of patients"
+coveffectsdatacovrepbsv$label <-    "90% of patients"
+coveffectsdatacovrepbsv$lower <- simoutbsvranges$P05
+coveffectsdatacovrepbsv$upper <- simoutbsvranges$P95
+coveffectsdatacovrepbsv2 <- coveffectsdatacovrep[coveffectsdatacovrep$covname=="REF",]
+coveffectsdatacovrepbsv2$covname <- "BSV"
+coveffectsdatacovrepbsv2$covvalue <- "50% of patients"
+coveffectsdatacovrepbsv2$label <-    "50% of patients"
+coveffectsdatacovrepbsv2$lower <- simoutbsvranges$P25
+coveffectsdatacovrepbsv2$upper <- simoutbsvranges$P75
+
+coveffectsdatacovrepbsv<- rbind(coveffectsdatacovrep,coveffectsdatacovrepbsv2,
+                                coveffectsdatacovrepbsv)
+
+coveffectsdatacovrepbsv <- coveffectsdatacovrepbsv %>% 
+  mutate(
+    label= covvalue,
+    LABEL = paste0(format(round(mid,2), nsmall = 2),
+                   " [", format(round(lower,2), nsmall = 2), "-",
+                   format(round(upper,2), nsmall = 2), "]"))
+coveffectsdatacovrepbsv<- as.data.frame(coveffectsdatacovrepbsv)
+
+coveffectsdatacovrepbsv$label <-factor(as.factor(coveffectsdatacovrepbsv$label ),
+            levels = c("All Subjects","90% of patients","50% of patients",
+              "50 kg","60 kg","80 kg","90 kg",
+              "0 mg","25 mg","50 mg","100 mg","125 mg","150 mg",
+              "Severe","70 kg\nNot Severe\n75 mg"
+              ))
+    
+
+coveffectsdatacovrepbsv$covname <-factor(as.factor(coveffectsdatacovrepbsv$covname ),
+                    levels = c("Weight","DOSE","SEV","REF","BSV"))
+
+ref_legend_text      <- "Reference (vertical line)"
+png("./Figure_8_4.png",width =9 ,height = 7,units = "in",res=72)
+forest_plot(coveffectsdatacovrepbsv,
+                            strip_placement = "outside",
+                            show_ref_area = FALSE,
+                            show_ref_value=TRUE,
+                            ref_legend_text = ref_legend_text,
+                            plot_table_ratio = 2,
+                            base_size = 12,
+                            table_text_size = 4,
+                            y_label_text_size      = 12,
+                            xlabel= " ",
+                            facet_formula = "covname~paramname",
+                            facet_labeller      = labeller(paramname=yvar_names),
+                            facet_scales           = "free",
+                            logxscale              = TRUE,
+                            major_x_ticks          = c(0.1,0.25, 0.5,1,1.5),
+                            x_range                = c(0.1, 1.5))
+
+dev.off()
+
 

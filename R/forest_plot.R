@@ -20,6 +20,10 @@ which0 <- function(x) {
 #' @param y_facet_text_size Facet text size Y.
 #' @param x_facet_text_angle Facet text angle X.
 #' @param y_facet_text_angle Facet text angle Y.
+#' @param x_facet_text_vjust Facet text vertical justification.
+#' @param y_facet_text_vjust Facet text vertical justification.
+#' @param x_facet_text_hjust Facet text horizontal justification.
+#' @param y_facet_text_hjust Facet text horizontal justification.
 #' @param xy_facet_text_bold Bold Facet text. Logical TRUE FALSE.
 #' @param x_label_text_size X axis labels size.
 #' @param y_label_text_size Y axis labels size.
@@ -39,6 +43,7 @@ which0 <- function(x) {
 #' @param legend_position where to put the legend: "top", "bottom","right","none"
 #' @param show_ref_area Show reference window?
 #' @param ref_area Reference area. Two-element numeric vector multiplying the ref_value.
+#' @param show_ref_value Show reference line?
 #' @param ref_value X intercept of reference line.
 #' @param ref_area_col Reference area background color.
 #' @param ref_value_col Reference line color.
@@ -54,6 +59,8 @@ which0 <- function(x) {
 #' "free_x", "free".
 #' @param facet_space Facet spaces. Possible values: "fixed", "free_x",
 #' "free_y", "free".
+#' @param facet_labeller Facet Labeller. Default "label_value"
+#'  any other valid `facet_grid` labeller can be specified.
 #' @param strip_placement Strip placement. Possible values: "inside", "outside".
 #' @param strip_outline Draw rectangle around the Strip. Logical TRUE FALSE.
 #' @param facet_spacing Control the space between facets in points.
@@ -79,6 +86,10 @@ which0 <- function(x) {
 #' for the top, right, bottom and left sides.
 #' @param table_margin Control the white space around the table. Vector of four numeric values
 #' for the top, right, bottom and left sides.
+#' @param legend_margin Control the white space around the plot legend. Vector of four numeric values
+#' for the top, right, bottom and left sides.
+#' @param parse_xlabel treat xlabel as an expression. Logical FALSE TRUE.
+#' @param parse_ylabel treat ylabel as an expression. Logical FALSE TRUE.
 #' @param return_list What to return if True a list of the main and table plots is returned
 #' instead of the gtable/plot.
 
@@ -222,6 +233,10 @@ forest_plot <- function(
   y_facet_text_size = 13,
   x_facet_text_angle = 0,
   y_facet_text_angle = 180,
+  x_facet_text_vjust = 0.5,
+  y_facet_text_vjust = 0.5,
+  x_facet_text_hjust = 0.5,
+  y_facet_text_hjust = 0.5,
   xy_facet_text_bold = TRUE,
   x_label_text_size = 16,
   y_label_text_size = 16,
@@ -238,6 +253,7 @@ forest_plot <- function(
   legend_position = "top",
   show_ref_area = TRUE,
   ref_area = c(0.8, 1.25),
+  show_ref_value = TRUE,
   ref_value = 1,
   ref_area_col = "#BEBEBE50",
   ref_value_col = "black",
@@ -250,6 +266,7 @@ forest_plot <- function(
   facet_switch = c("both", "y", "x", "none"),
   facet_scales = c("fixed", "free_y", "free_x", "free"),
   facet_space = c("fixed", "free_x", "free_y", "free"),
+  facet_labeller = "label_value",
   strip_placement = c("inside", "outside"),
   strip_outline = TRUE,
   facet_spacing = 5.5,
@@ -262,7 +279,7 @@ forest_plot <- function(
   show_table_facet_strip = "none",
   table_facet_switch = c("both", "y", "x", "none"),
   show_table_yaxis_tick_label = FALSE,
-  reserve_table_xaxis_label_space = FALSE,
+  reserve_table_xaxis_label_space = TRUE,
   table_panel_border = TRUE,
   table_position = c("right", "below", "none"),
   plot_table_ratio = 4,
@@ -272,11 +289,15 @@ forest_plot <- function(
   legend_ncol_shape = 1,
   plot_margin = c(5.5, 5.5, 5.5, 5.5),
   table_margin = c(5.5, 5.5, 5.5, 5.5),
+  legend_margin = c(0, 0.1, -0.1, 0),
+  parse_xlabel = FALSE,
+  parse_ylabel = FALSE,
   return_list = FALSE)
 {
   ymax = ymin = x = fill = NULL
   plot_margin[ which(is.na(plot_margin) ) ] <- 0
   table_margin[ which(is.na(table_margin) ) ] <- 0
+  legend_margin[ which(is.na(legend_margin) ) ] <- 0
   facet_spacing[ which(is.na(facet_spacing) ) ] <- 0
   
   table_position <- match.arg(table_position)
@@ -295,7 +316,10 @@ forest_plot <- function(
   } else {
     x.strip.text <- ggplot2::element_text(size = x_facet_text_size,
                                           angle= x_facet_text_angle,
-                                          face = ifelse(xy_facet_text_bold,"bold","plain"))
+                                          face = ifelse(xy_facet_text_bold,"bold","plain"),
+                                          hjust = x_facet_text_hjust,
+                                          vjust = x_facet_text_vjust
+                                          )
   }
   if (y_facet_text_size <= 0) {
     y.strip.text <- ggplot2::element_blank()
@@ -305,12 +329,17 @@ forest_plot <- function(
                                           angle= ifelse(facet_switch %in% c("x","none"),
                                                         y_facet_text_angle-180,
                                                         y_facet_text_angle),
-                                          face = ifelse(xy_facet_text_bold,"bold","plain"))
+                                          face = ifelse(xy_facet_text_bold,"bold","plain"),
+                                          hjust = y_facet_text_hjust,
+                                          vjust = y_facet_text_vjust
+                                          )
    table.y.strip.text <- ggplot2::element_text(size = y_facet_text_size,
                                                angle= ifelse(table_facet_switch %in% c("x","none"),
                                                              y_facet_text_angle-180,
                                                              y_facet_text_angle),
-                                               face = ifelse(xy_facet_text_bold,"bold","plain")) 
+                                               face = ifelse(xy_facet_text_bold,"bold","plain"),
+                                               hjust = y_facet_text_hjust,
+                                               vjust = y_facet_text_vjust) 
   }
   
   if (theme_benrich && y_facet_text_size >0){
@@ -335,10 +364,16 @@ forest_plot <- function(
     )
   }
 
-  
-  if (xlabel == "") {
+  if ( !is.expression(xlabel) && xlabel == "" ) {
     xlabel <- paste("Changes of Parameter Relative to Reference")
   }
+  if ( !is.expression(xlabel) && parse_xlabel) { 
+    xlabel <-   parse(text=xlabel)
+    }
+  if ( !is.expression(ylabel) && parse_ylabel) { 
+    ylabel <-   parse(text=ylabel)
+  }
+  
   if (table_title == "") {
     table_title <- "Median [95% CI]"
   }
@@ -428,11 +463,15 @@ forest_plot <- function(
     ) 
 }
 # fake ribbon for fill legend
-  main_plot <- main_plot +
-    ggplot2::geom_vline(
-      ggplot2::aes(xintercept = ref_value, linetype = ref_legend_text),
-      size = 1, color = ref_value_col 
-    ) +
+  
+  if (show_ref_value) {
+    main_plot <- main_plot +
+      ggplot2::geom_vline(
+        ggplot2::aes(xintercept = ref_value, linetype = ref_legend_text),
+        size = 1, color = ref_value_col 
+      )
+  }
+  main_plot <- main_plot+
     ggstance::geom_pointrangeh(
       position = ggstance::position_dodgev(height = vertical_dodge_height),
       ggplot2::aes_string(color = "pointintervalcolor"),
@@ -469,13 +508,15 @@ forest_plot <- function(
       ggplot2::facet_grid(facet_formula,
                           scales = facet_scales,
                           space = facet_space,
-                          switch = facet_switch)
+                          switch = facet_switch,
+                          labeller = facet_labeller)
   } else {
     main_plot <- main_plot +
       ggplot2::facet_grid(facet_formula,
                           scales = facet_scales,
                           space = facet_space,
-                          switch = NULL)
+                          switch = NULL,
+                          labeller = facet_labeller)
   }
 
   main_plot <- main_plot +
@@ -498,7 +539,11 @@ forest_plot <- function(
       panel.spacing = ggplot2::unit(facet_spacing, "pt"),
       strip.placement  = strip_placement,
       legend.spacing.x = ggplot2::unit(legend_space_x_mult*11, "pt"),
-      legend.margin = ggplot2::margin(t = 0, r = 0.1, l = -0.1, b = 0, unit='cm'),
+      legend.margin = ggplot2::margin(t = legend_margin[1],
+                                      r = legend_margin[2],
+                                      b = legend_margin[3],
+                                      l = legend_margin[4],
+                                      unit='pt'),
       plot.margin =  ggplot2::margin(t = plot_margin[1],
                                      r = plot_margin[2],
                                      b = plot_margin[3],
@@ -589,13 +634,15 @@ forest_plot <- function(
         ggplot2::facet_grid(facet_formula,
                             scales = facet_scales,
                             space = facet_space,
-                            switch = table_facet_switch)
+                            switch = table_facet_switch,
+                            labeller = facet_labeller)
     } else {
       table_plot <- table_plot +
         ggplot2::facet_grid(facet_formula,
                             scales = facet_scales,
                             space = facet_space,
-                            switch = NULL)
+                            switch = NULL,
+                            labeller = facet_labeller)
     }
 
     table_plot <- table_plot +
@@ -635,8 +682,10 @@ forest_plot <- function(
     if (show_table_facet_strip=="none") {
       table_plot <- table_plot +
         ggplot2::theme(
-          strip.text = ggplot2::element_blank(),
-          strip.background = ggplot2::element_blank()
+          strip.text.x = ggplot2::element_blank(),
+          strip.text.y = ggplot2::element_blank(),
+          strip.background.x = ggplot2::element_blank(),
+          strip.background.y = ggplot2::element_blank()
         )
     }
     

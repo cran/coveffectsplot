@@ -57,6 +57,8 @@ fluidPage(
                                selected = c("covname ~ ."),
                                multiple = FALSE),
                  
+                 tabsetPanel(
+                   tabPanel("Size/Angle/Face",
                  sliderInput("facettexty", "Facet Text Size Y",
                              min = 0, max = 32, step = 1, value = 22),
                  sliderInput("facettextx", "Facet Text Size X",
@@ -65,7 +67,19 @@ fluidPage(
                              min = 90, max = 180+90, step = 90, value = 180),
                  sliderInput("facettextxangle", "Facet Text Angle X",
                              min = 0, max = 90, step = 90, value = 0),
-                 checkboxInput('boldfacettext', "Bold Facet Text", value = TRUE),
+                 checkboxInput('boldfacettext', "Bold Facet Text", value = TRUE)
+                   ),
+                 tabPanel("Justification",
+                 sliderInput("x_facet_text_vjust", "Facet Text Vertical Justification X",
+                                      min = 0, max = 1, step = 0.1, value = 0.5),
+                 sliderInput("y_facet_text_vjust", "Facet Text Vertical Justification Y",
+                                      min = 0, max = 1, step = 0.1, value = 0.5),
+                 sliderInput("x_facet_text_hjust", "Facet Text Horizontal Justification X",
+                                      min = 0, max = 1, step = 0.1, value = 0.5),
+                 sliderInput("y_facet_text_hjust", "Facet Text Horizontal Justification y",
+                                      min = 0, max = 1, step = 0.1, value = 0.5)
+                 )
+                 ),
                  selectizeInput(  "stripplacement", "Strip Placement:",
                                   choices = c("inside","outside"),
                                   selected = c("outside"),
@@ -110,8 +124,9 @@ fluidPage(
           ),
           checkboxInput('logxscale', 'Log-scale X axis ?', value = FALSE),
           textInput("yaxistitle", label = "Y axis Title", value = ""),
-          textInput("xaxistitle", label = "X axis Title", value = "")
-          
+          checkboxInput('parseyaxistitle', 'Parse Y axis Title?', value = FALSE),
+          textInput("xaxistitle", label = "X axis Title", value = ""),
+          checkboxInput('parsexaxistitle', 'Parse X axis Title?', value = FALSE)
         ),
         tabPanel(
           "How To",
@@ -123,7 +138,10 @@ fluidPage(
 
     column(
       8,
-      plotOutput('plot', height = "auto", width = "100%")
+      plotOutput('plot', height = "auto", width = "100%"),
+      # shinyjs::hidden(
+      #   actionButton("get_code", "Show Code", icon = icon("code")), br(), br()
+      # )
     ), # column6
 
     column(
@@ -131,11 +149,11 @@ fluidPage(
       tabsetPanel(
         tabPanel(
           "Table Options",
-              numericInput("sigdigits",label = "Significant Digits",value = 2,min=NA,max=NA),
+              numericInput("sigdigits",label = "Significant Digits",value = 2,min=0,max=NA),
               sliderInput("tabletextsize", "Table Text Size", min=1, max=12,step=0.5, value=7),
-              sliderInput("plottotableratio", "Plot to Table Ratio", min=1, max=5, value=4,step=0.25,
+              sliderInput("plottotableratio", "Plot to Table Ratio", min=1, max=5,
+                          value=4,step=0.25,
                           animate = FALSE),
-
               selectInput('tableposition','Table Position:',
                           c("on the right" = "right", "below" = "below", "none" = "none") ),
               selectInput(  "showtablefacetstrips", "Show Table Facet Strip on:",
@@ -146,22 +164,42 @@ fluidPage(
                             choices = c("both","y","x","none"),
                             selected = c("both"),
                             multiple = FALSE),
-              checkboxInput('showtableyaxisticklabel', 'Show Table y axis ticks/labels ?', value = FALSE),
-              checkboxInput('reservetablexaxislabelspace', 'Reserve Table x axis space ?', value = FALSE),
-              checkboxInput('tablepanelborder', 'Draw Table Panel Borders ?', value = TRUE)
+              checkboxInput('showtableyaxisticklabel',
+                            'Show Table y axis ticks/labels ?', value = FALSE),
+              checkboxInput('reservetablexaxislabelspace', 'Reserve Table x axis space ?',
+                            value = FALSE),
+              checkboxInput('tablepanelborder',
+                            'Draw Table Panel Borders ?',
+                            value = TRUE)
         ),#tabpanel
         tabPanel(
           "Reference Options",
-          numericInput("refvalue","Reference Line",value = 1,step = 0.1),
+          checkboxInput('showrefvalue', 'Show Reference Line?', value = TRUE),
+          conditionalPanel(condition = "input.showrefvalue" ,
+          numericInput("refvalue","Reference Line",value = 1,step = 0.1)),
           checkboxInput('showrefarea', 'Show Reference Area?', value = TRUE),
           conditionalPanel(condition = "input.showrefarea" ,
                            uiOutput("refarea")),
-          sliderInput("height", "Plot Height", min=1080/4, max=1080,
-                      value=900, animate = FALSE)
+          
+          colourpicker::colourInput("fillrefarea",
+                                    "Reference Area Fill:",
+                                    value= "#BEBEBE50",
+                                    showColour = "both",allowTransparent=TRUE,
+                                    returnName = TRUE),
+          div( actionButton("fillrefareareset", "Reset Reference Area Fill"),
+               style="text-align: right"),
+          
+          colourpicker::colourInput("colorrefvalue",
+                                    "Reference Line Color:",
+                                    value= "black",
+                                    showColour = "both",allowTransparent=TRUE,
+                                    returnName = TRUE),
+          div( actionButton("colorrefvaluereset", "Reset Reference Line Color"),
+               style="text-align: right")
           ),#tabpanel
         
         tabPanel(
-          "Colour/Legend Options/theme",
+          "Colour/Legend Options/Theme",
           colourpicker::colourInput("stripbackgroundfill",
                                     "Strip Background Fill:",
                                     value="#E5E5E5",
@@ -181,25 +219,10 @@ fluidPage(
                                     showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           div( actionButton("colourbsvrangereset", "Reset BSV Range Colour"),
                style="text-align: right"),
-
-          colourpicker::colourInput("fillrefarea",
-                                    "Reference Area Fill:",
-                                    value= "#BEBEBE50",
-                                    showColour = "both",allowTransparent=TRUE,
-                                    returnName = TRUE),
-          div( actionButton("fillrefareareset", "Reset Reference Area Fill"),
-               style="text-align: right"),
-          
-          colourpicker::colourInput("colorrefvalue",
-                                    "Reference Line Color:",
-                                    value= "black",
-                                    showColour = "both",allowTransparent=TRUE,
-                                    returnName = TRUE),
-          div( actionButton("colorrefvaluereset", "Reset Reference Line Color"),
-               style="text-align: right"),
-          
           sliderInput("base_size", "Base size for the theme",
                       min = 1, max = 30, step = 0.1, value = 22),
+          sliderInput("height", "Plot Height", min=1080/4, max=1080,
+                      value=900, animate = FALSE),
           checkboxInput('theme_benrich', "Apply Ben's Theme",value = FALSE),
           conditionalPanel(
             condition = "input.theme_benrich",
@@ -217,10 +240,10 @@ fluidPage(
         ),#tabpanel
         tabPanel(
           "Custom Legend Ordering/Spacing",
-          div(style="display:inline-block",
+          inline_ui(
               numericInput("ncolinterval",label = "Number of columns for the Interval legend",
                            value = 1,min=NA,max=NA,width='120px')),
-          div(style="display:inline-block",
+          inline_ui(
               numericInput("ncolshape",label = "Number of columns for the shape legend",
                            value = 1,min=NA,max=NA,width='120px')),
           
@@ -239,32 +262,42 @@ fluidPage(
           numericInput("panelspacing",label = "Strip Panel Spacing",
                        value = 5.5,min=0,step=0.1,
                        max=20,width='100%'),
-          
-          div(style="display:inline-block",
+          inline_ui(
               numericInput("margintop",label = "Plot Top Margin",
-                           value = 0,min=0,max=NA,width='120px')),
-          div(style="display:inline-block",
+                           value = 0,min=0,max=NA,width='80px')),
+          inline_ui(
               numericInput("tabletop",label = "Table Top Margin",
-                           value = 0,min=0,max=NA,width='120px')),
-          div(style="display:inline-block",
+                           value = 0,min=0,max=NA,width='80px')),
+          inline_ui(
+              numericInput("legendtop",label = "Legend Top Margin",
+                           value = 0,min=0,max=NA,width='80px')),
+          inline_ui(
               numericInput("marginleft",label = "Plot Left Margin",
-                           value = 5.5,min=0,max=NA,width='120px')),
-          div(style="display:inline-block",
+                           value = 5.5,min=0,max=NA,width='80px')),
+          inline_ui(
               numericInput("tableleft",label = "Table Left Margin",
-                           value = 5.5,min=0,max=NA,width='120px')),
-          div(style="display:inline-block",
+                           value = 5.5,min=0,max=NA,width='80px')),
+          inline_ui(
+              numericInput("legendleft",label = "Legend Left Margin",
+                           value = 5.5,min=0,max=NA,width='80px')),
+          inline_ui(
               numericInput("marginright",label = "Plot Right Margin",
-                           value = 5.5,min=0,max=NA,width='120px')),
-         div(style="display:inline-block",
+                           value = 5.5,min=0,max=NA,width='80px')),
+          inline_ui(
               numericInput("tableright",label = "Table Right Margin",
-                           value = 5.5,min=0,max=NA,width='120px')),
-        div(style="display:inline-block",
+                           value = 5.5,min=0,max=NA,width='80px')),
+          inline_ui(
+             numericInput("legendright",label = "Legend Right Margin",
+                          value = 5.5,min=0,max=NA,width='80px')),
+          inline_ui(
             numericInput("marginbottom",label = "Plot Bottom Margin",
-                         value = 0,min=0,max=NA,width='120px')),
-        div(style="display:inline-block",
+                         value = 0,min=0,max=NA,width='80px')),
+          inline_ui(
             numericInput("tablebottom",label = "Table Bottom Margin",
-                         value = 0,min=0,max=NA,width='120px'))
-        
+                         value = 0,min=0,max=NA,width='80px')),
+          inline_ui(
+            numericInput("legendbottom",label = "Legend Bottom Margin",
+                         value = 0,min=0,max=NA,width='80px'))
           
         ),#tabpanel
         tabPanel(

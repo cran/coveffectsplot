@@ -13,6 +13,10 @@ forest_plot(
   y_facet_text_size = 13,
   x_facet_text_angle = 0,
   y_facet_text_angle = 180,
+  x_facet_text_vjust = 0.5,
+  y_facet_text_vjust = 0.5,
+  x_facet_text_hjust = 0.5,
+  y_facet_text_hjust = 0.5,
   xy_facet_text_bold = TRUE,
   x_label_text_size = 16,
   y_label_text_size = 16,
@@ -29,6 +33,7 @@ forest_plot(
   legend_position = "top",
   show_ref_area = TRUE,
   ref_area = c(0.8, 1.25),
+  show_ref_value = TRUE,
   ref_value = 1,
   ref_area_col = "#BEBEBE50",
   ref_value_col = "black",
@@ -41,6 +46,7 @@ forest_plot(
   facet_switch = c("both", "y", "x", "none"),
   facet_scales = c("fixed", "free_y", "free_x", "free"),
   facet_space = c("fixed", "free_x", "free_y", "free"),
+  facet_labeller = "label_value",
   strip_placement = c("inside", "outside"),
   strip_outline = TRUE,
   facet_spacing = 5.5,
@@ -53,7 +59,7 @@ forest_plot(
   show_table_facet_strip = "none",
   table_facet_switch = c("both", "y", "x", "none"),
   show_table_yaxis_tick_label = FALSE,
-  reserve_table_xaxis_label_space = FALSE,
+  reserve_table_xaxis_label_space = TRUE,
   table_panel_border = TRUE,
   table_position = c("right", "below", "none"),
   plot_table_ratio = 4,
@@ -63,6 +69,9 @@ forest_plot(
   legend_ncol_shape = 1,
   plot_margin = c(5.5, 5.5, 5.5, 5.5),
   table_margin = c(5.5, 5.5, 5.5, 5.5),
+  legend_margin = c(0, 0.1, -0.1, 0),
+  parse_xlabel = FALSE,
+  parse_ylabel = FALSE,
   return_list = FALSE
 )
 }
@@ -82,6 +91,14 @@ forest_plot(
 \item{x_facet_text_angle}{Facet text angle X.}
 
 \item{y_facet_text_angle}{Facet text angle Y.}
+
+\item{x_facet_text_vjust}{Facet text vertical justification.}
+
+\item{y_facet_text_vjust}{Facet text vertical justification.}
+
+\item{x_facet_text_hjust}{Facet text horizontal justification.}
+
+\item{y_facet_text_hjust}{Facet text horizontal justification.}
 
 \item{xy_facet_text_bold}{Bold Facet text. Logical TRUE FALSE.}
 
@@ -118,6 +135,8 @@ share the same text?}
 
 \item{ref_area}{Reference area. Two-element numeric vector multiplying the ref_value.}
 
+\item{show_ref_value}{Show reference line?}
+
 \item{ref_value}{X intercept of reference line.}
 
 \item{ref_area_col}{Reference area background color.}
@@ -144,6 +163,9 @@ share the same text?}
 
 \item{facet_space}{Facet spaces. Possible values: "fixed", "free_x",
 "free_y", "free".}
+
+\item{facet_labeller}{Facet Labeller. Default "label_value"
+any other valid `facet_grid` labeller can be specified.}
 
 \item{strip_placement}{Strip placement. Possible values: "inside", "outside".}
 
@@ -191,6 +213,13 @@ for the top, right, bottom and left sides.}
 
 \item{table_margin}{Control the white space around the table. Vector of four numeric values
 for the top, right, bottom and left sides.}
+
+\item{legend_margin}{Control the white space around the plot legend. Vector of four numeric values
+for the top, right, bottom and left sides.}
+
+\item{parse_xlabel}{treat xlabel as an expression. Logical FALSE TRUE.}
+
+\item{parse_ylabel}{treat ylabel as an expression. Logical FALSE TRUE.}
 
 \item{return_list}{What to return if True a list of the main and table plots is returned
 instead of the gtable/plot.}

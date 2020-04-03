@@ -1,23 +1,29 @@
 ## ----setup, include = FALSE---------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
+  warning =FALSE,
+  message =FALSE,
   comment = "#>",
   dev.args = list(png = list(type = "cairo"))
 )
 library(coveffectsplot)
+library(ggplot2)
+library(ggridges)
 suppressPackageStartupMessages( library(dplyr) )
+nuncertainty <- 10000
+nbsvsubjects <- 100000
 
 
 ## ---- echo=TRUE, results='asis',fig.align = "center",fig.width = 6------------
 set.seed(657687)
 df <- data.frame(
-MASS::mvrnorm(n = 10000,
+MASS::mvrnorm(n = nuncertainty,
                 mu = c(10,0.75,1.5),
-                Sigma=matrix(c((10*0.05)^2,
-                               0.001,0.001,0.001,(0.75*0.05)^2,
-                               0.001,0.001,0.001,(1.5*0.05)^2),3,3,byrow = TRUE) 
+                Sigma=matrix(c((10*0.15)^2,
+                               0.001,0.001,0.001,(0.75*0.15)^2,
+                               0.001,0.001,0.001,(1.5*0.15)^2),3,3,byrow = TRUE) 
 ))
-names(df) <- c("POPCL","dWTdCL","dSEXdCL")
+names(df) <- c("POPCL","dWTdCL","dSexdCL")
 knitr::kable(head(round(df,2),5))
 
 ## ---- echo=FALSE, results='asis',fig.align = "center",fig.width = 6-----------
@@ -26,15 +32,16 @@ dflong <- tidyr::gather(df)
 ggplot2::ggplot(dflong,ggplot2::aes(x=value,fill=key))+
   ggplot2::geom_density(alpha=0.2)+
     ggplot2::facet_wrap(~key,scales="free",ncol=1)+
-    ggplot2::labs(fill="",x="Uncertainty Distribution of the parameters")+
+    ggplot2::labs(fill="",x="Uncertainty Distribution (RSE 15%) of the Parameters")+
   ggplot2::theme(legend.position = "right",legend.background = 
-                   ggplot2::element_rect(fill="transparent"))+
-  ggplot2::guides(fill=ggplot2::guide_legend(reverse = TRUE))
-
+                   ggplot2::element_rect(fill="transparent"),
+                 axis.ticks.y = element_blank(),axis.text.y =element_blank())+
+  ggplot2::guides(fill=ggplot2::guide_legend(reverse = FALSE))
+set.seed(657687)
 dfcov<- data.frame(
-MASS::mvrnorm(n=10000 ,
+MASS::mvrnorm(n=nbsvsubjects,
                 mu =c(65,75),
-                Sigma=matrix(c(15^2,0.01,0.01,15^2),2,2,byrow = TRUE) 
+                Sigma=matrix(c(20^2,0.01,0.01,20^2),2,2,byrow = TRUE) 
 ))
 names(dfcov)<- c("WTWOMAN","WTMAN")
 dfcovlong <- tidyr::gather(dfcov)
@@ -42,76 +49,78 @@ ggplot2::ggplot(dfcovlong,ggplot2::aes(x=value,fill=key))+
   ggplot2::geom_density(alpha=0.2)+
   ggplot2::labs(fill="",x="Weight (kg)")+
   ggplot2::theme(legend.position = "right",legend.background = 
-                   ggplot2::element_rect(fill="transparent"))+
-  ggplot2::guides(fill=ggplot2::guide_legend(reverse = TRUE))
+                   ggplot2::element_rect(fill="transparent"),axis.ticks.y = element_blank(),axis.text.y =element_blank())+
+  ggplot2::guides(fill=ggplot2::guide_legend(reverse = FALSE))
 
 
 dfcovlongquantile<- as.data.frame(
-  round(quantile(dfcovlong$value,probs=c(0,0.05,0.25,0.5,0.75,0.95,1)),0)
+  round(quantile(dfcovlong$value,probs=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)),0)
 )
 names(dfcovlongquantile)<- "Weightquantilevalue"
 dfcovlongquantile$quantile<- rownames(dfcovlongquantile)
-
 
 dfcovlongquantiletable<- t(dfcovlongquantile)
 knitr::kable(dfcovlongquantiletable[1,,drop=FALSE],row.names=FALSE)
 
 ## ---- echo=TRUE,fig.align = "center",fig.width = 6----------------------------
 set.seed(546789)
-CLBSVdistribution <- data.frame(CL= 10*exp(rnorm(10000,0,sd=0.09^0.5)))
+CLBSVdistribution <- data.frame(CL= 10*exp(rnorm(nbsvsubjects,0,sd=0.09^0.5)))
 CLBSVdistribution$CLBSV<- CLBSVdistribution$CL/10
 
-## ---- echo=FALSE,fig.align = "center",fig.width = 6---------------------------
+## ---- echo=FALSE,fig.align = "center",fig.width = 6 ,fig.height=4-------------
 dfbsv<- as.data.frame(
-  round( quantile(CLBSVdistribution$CLBSV,probs=c(0,0.05,0.25,0.5,0.75,0.95,1)),1))
+  round( quantile(CLBSVdistribution$CLBSV,probs=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)),2))
 names(dfbsv)<- "BSVquantilevalue"
 dfbsv$quantile<- rownames(dfbsv)
-BSVLINE1<- data.frame(
-                       mid = 1,
-                       lower=quantile(CLBSVdistribution$CLBSV,c(0.05)),
-                       upper=quantile(CLBSVdistribution$CLBSV,c(0.95)),
-                       extent="BSV90%")
+CLBSVdistribution$paramname<- "CL"
+bsvplot<-   ggplot(CLBSVdistribution, aes(
+  x      = CLBSV,
+  y      = paramname,
+  fill   = factor(..quantile..),
+  height = ..ndensity..)) +
+  stat_density_ridges(
+    geom="density_ridges_gradient", calc_ecdf=TRUE,
+    quantile_lines=TRUE, rel_min_height=0.001, scale=0.9,
+    quantiles=c(0.05, 0.25, 0.5, 0.75, 0.95)) +
+  scale_fill_manual(
+    name="BSV Ranges",
+    values=c("white", "#FF000050", "#FF0000A0", "#FF0000A0", "#FF000050", "white"),
+    labels = c("(0, 0.05]", "(0.05, 0.25]",
+               "(0.25, 0.5]", "(0.5, 0.75]",
+               "(0.75, 0.95]", "(0.95, 1]")) +
+  theme_bw(base_size = 16) +
+  theme(
+    legend.position = "right",
+    axis.text.y     = element_blank(),
+    axis.ticks.y    = element_blank(),
+    axis.title.y    = element_blank(),
+    axis.text.x=ggplot2::element_text(size=12),
+    axis.title.x=ggplot2::element_text(size=14)) +
+  scale_x_continuous(breaks=c(0.61,0.82,1,1.22,1.63))+
+  coord_cartesian(expand=FALSE,xlim = c(0.49,2.01))+
+  ggplot2::labs(x="Standardized Individual Clearances with BSV",
+                title="Illustrating 30.7% BSV")
 
-BSVLINE2<- data.frame( 
-                       mid = 1,
-                       lower=quantile(CLBSVdistribution$CLBSV,c(0.25)),
-                       upper=quantile(CLBSVdistribution$CLBSV,c(0.75)),
-                       extent="BSV50%")
-
-BSVLINE <- rbind(BSVLINE1,BSVLINE2)
-ggplot2::ggplot(data= CLBSVdistribution)+
- ggplot2:: geom_density(ggplot2::aes(x=CLBSV,
-                   col="simomega")) +
-   ggplot2::geom_rect(data=BSVLINE,
-            ggplot2::aes(xmin=lower,xmax=upper  ,
-                fill=extent),ymin=-Inf,ymax=Inf ,
-           alpha=0.1)+
-  ggplot2::geom_vline(xintercept=c(0.8,1,1.25))+
-  ggplot2::theme_bw(base_size = 16)+
-  ggplot2::theme(axis.text.y = ggplot2::element_blank(),
-        axis.ticks.y = ggplot2::element_blank(),
-        axis.text.x=ggplot2::element_text(size=12))+
-  ggplot2::scale_x_continuous(breaks=c(0.25,0.5,0.8,1,1.25,1.5,2,3))+
-  ggplot2::coord_cartesian(xlim=c(0.4,2))+
-  ggplot2::labs(colour="",fill="BSV Coverage",x="BSVCL/Reference CL",
-                title="Illustrating 30% BSV")+
-  ggplot2::guides(fill = ggplot2::guide_legend(override.aes =  list(alpha = 0.1)  ))
-
-
+bsvplot
 
 dfbsvtable<- t(dfbsv)
 knitr::kable(dfbsvtable[1,,drop=FALSE],row.names=FALSE)
 #bayestestR::hdi(CLBSVdistribution$CLBSV,ci = c(.50, .90))
 #0.55, 0.74, 1 , 1.12, 1.53
 
+## ----include=FALSE------------------------------------------------------------
+# bsvplot
+# ggsave("Figure_2.png", device="png",
+#        type="cairo-png",width= 7, height = 5,dpi=300)
+
 ## ----fig.width= 7-------------------------------------------------------------
 dfeffects <- df
 dfeffects$REF <- dfeffects$POPCL/ median(dfeffects$POPCL)
 dfeffects$SEX_FEMALE_WT_50 <- dfeffects$REF*(50/70)^dfeffects$dWTdCL
 dfeffects$SEX_FEMALE_WT_90 <-  dfeffects$REF*(90/70)^dfeffects$dWTdCL
-dfeffects$SEX_Male_WT_70 <- dfeffects$dSEXdCL
-dfeffects$SEX_Male_WT_90 <- dfeffects$dSEXdCL*dfeffects$REF*(90/70)^dfeffects$dWTdCL
-dfeffects$BSV<-  CLBSVdistribution$CLBSV
+dfeffects$SEX_Male_WT_70 <- dfeffects$dSexdCL
+dfeffects$SEX_Male_WT_90 <- dfeffects$dSexdCL*dfeffects$REF*(90/70)^dfeffects$dWTdCL
+dfeffects$BSV<-  sample(CLBSVdistribution$CLBSV, nuncertainty)
 
 dfeffects<- dfeffects[,c("SEX_FEMALE_WT_50",
                          "SEX_FEMALE_WT_90",
@@ -148,10 +157,10 @@ ggridges::stat_density_ridges(
 
 ## ----fig.width= 7-------------------------------------------------------------
 ggplot2::ggplot(dfeffects)+
-  ggplot2::geom_density(ggplot2::aes(x=REF,y=..scaled..,col="a.Uncertainty\nRSE=5%"))+
+  ggplot2::geom_density(ggplot2::aes(x=REF,y=..scaled..,col="a.Uncertainty\nRSE=15%"))+
   ggplot2::geom_density(data=dfcovlong,
                         ggplot2::aes(x=(value/70)^0.75 ,
-                                y=..scaled..,col="b.Weight\nMean=70 kg, sd=15 kg"))+
+                                y=..scaled..,col="b.Weight\nMean=70 kg, sd=20 kg"))+
   ggplot2::geom_density(data=CLBSVdistribution ,ggplot2::aes(x=CLBSV,
                                      y=..scaled..,col="c.Between subject variability\nCV=30%"))+
   ggplot2::theme_bw(base_size = 16)+
@@ -159,7 +168,7 @@ ggplot2::ggplot(dfeffects)+
         axis.ticks.y = ggplot2::element_blank())+
   ggplot2::scale_x_continuous(breaks=c(0.25,0.5,0.8,1,1.25,1.5,2,3))+
   ggplot2::coord_cartesian(xlim=c(0.25,2))+
-  ggplot2::labs(color="",x="Effects Relative to parameter reference value",y= "Scaled Density")
+  ggplot2::labs(color="",x="Effects Standardized Relative to the Typical Value",y= "Scaled Density")
 
 
 ## -----------------------------------------------------------------------------
