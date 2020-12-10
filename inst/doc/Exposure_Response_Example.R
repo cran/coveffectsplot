@@ -4,9 +4,12 @@ knitr::opts_chunk$set(
   message =FALSE,
   warning =FALSE,
   fig.width = 7,
-  comment = "#>",
-  dev.args = list(png = list(type = "cairo"))
+  comment = "#>"
 )
+if (capabilities(("cairo"))) {
+  knitr::opts_chunk$set(dev.args = list(png = list(type = "cairo")))
+}
+
 library(coveffectsplot)
 library(ggplot2)
 library(dplyr)
@@ -111,7 +114,7 @@ simoutbsvplacebo <- simout %>%
   mutate(LGST =LGST)%>%
   gather(paramname, paramvalue,LGST,P1)%>%
   group_by(paramname)%>%
-  summarize(P50 = quantile(paramvalue, 0.5)
+  dplyr::summarize(P50 = quantile(paramvalue, 0.5)
 )
 simoutbsv <- simout %>% 
   mutate(logodds =LGST)%>% 
@@ -159,7 +162,7 @@ pbsvranges
 
 simoutbsvranges <- simoutbsvlong %>%
   group_by(paramname)%>%
-  summarize(
+  dplyr::summarize(
    P05 = quantile(paramvalue, 0.05),
     P25 = quantile(paramvalue, 0.25),
     P50 = quantile(paramvalue, 0.5),

@@ -8,6 +8,13 @@ which0 <- function(x) {
   result
 }
 
+label_wrap <- function(width) {
+  force(width)
+  function(x) {
+    unlist(lapply(strwrap(x, width = width, simplify = FALSE), 
+                  paste0, collapse = "\n"))
+  }
+}
 #' Forest plot
 #'
 #' Produce forest plots to visualize covariate effects
@@ -27,6 +34,8 @@ which0 <- function(x) {
 #' @param xy_facet_text_bold Bold Facet text. Logical TRUE FALSE.
 #' @param x_label_text_size X axis labels size.
 #' @param y_label_text_size Y axis labels size.
+#' @param break_ylabel Split Y axis labels into multiple lines. Logical FALSE TRUE.
+#' @param y_label_text_width Number of characters to break Y axis labels.
 #' @param table_text_size Table text size.
 #' @param base_size theme_bw base_size for the plot and table.
 #' @param theme_benrich apply Benjamin Rich's theming.
@@ -61,6 +70,9 @@ which0 <- function(x) {
 #' "free_y", "free".
 #' @param facet_labeller Facet Labeller. Default "label_value"
 #'  any other valid `facet_grid` labeller can be specified.
+#' @param label_wrap_width How many characters before breaking the line. Numeric value.
+#'  any other valid `facet_grid` labeller can be specified.
+#' @param facet_labeller_multiline break facet strips into multiple lines. Logical TRUE FALSE.
 #' @param strip_placement Strip placement. Possible values: "inside", "outside".
 #' @param strip_outline Draw rectangle around the Strip. Logical TRUE FALSE.
 #' @param facet_spacing Control the space between facets in points.
@@ -92,11 +104,11 @@ which0 <- function(x) {
 #' @param parse_ylabel treat ylabel as an expression. Logical FALSE TRUE.
 #' @param return_list What to return if True a list of the main and table plots is returned
 #' instead of the gtable/plot.
-
-
+#' @rawNamespace import(data.table, except = c(last,between,first))
 #' @examples
 #' library(dplyr)
-#'
+#' library(ggplot2)
+#' 
 #' # Example 1
 #'
 #' plotdata <- get_sample_data("forest-plot-table.csv")
@@ -149,6 +161,7 @@ which0 <- function(x) {
 #'             x_facet_text_size = 10,
 #'             y_facet_text_size = 10,
 #'             y_label_text_size = 10,
+#'             y_label_text_width = 15,
 #'             x_label_text_size = 10,
 #'             facet_switch = "both",
 #'             show_table_facet_strip = "both",
@@ -232,14 +245,16 @@ forest_plot <- function(
   x_facet_text_size = 13,
   y_facet_text_size = 13,
   x_facet_text_angle = 0,
-  y_facet_text_angle = 180,
+  y_facet_text_angle = 0,
   x_facet_text_vjust = 0.5,
   y_facet_text_vjust = 0.5,
   x_facet_text_hjust = 0.5,
   y_facet_text_hjust = 0.5,
   xy_facet_text_bold = TRUE,
-  x_label_text_size = 16,
-  y_label_text_size = 16,
+  x_label_text_size  = 16,
+  y_label_text_size  = 16,
+  break_ylabel = FALSE,
+  y_label_text_width = 25,
   table_text_size = 7,
   base_size = 22,
   theme_benrich = FALSE,
@@ -267,6 +282,8 @@ forest_plot <- function(
   facet_scales = c("fixed", "free_y", "free_x", "free"),
   facet_space = c("fixed", "free_x", "free_y", "free"),
   facet_labeller = "label_value",
+  label_wrap_width = 55,
+  facet_labeller_multiline = FALSE,
   strip_placement = c("inside", "outside"),
   strip_outline = TRUE,
   facet_spacing = 5.5,
@@ -294,7 +311,7 @@ forest_plot <- function(
   parse_ylabel = FALSE,
   return_list = FALSE)
 {
-  ymax = ymin = x = fill = NULL
+  ymax = ymin = x = fill = label_wrap_gen = NULL
   plot_margin[ which(is.na(plot_margin) ) ] <- 0
   table_margin[ which(is.na(table_margin) ) ] <- 0
   legend_margin[ which(is.na(legend_margin) ) ] <- 0
@@ -310,9 +327,13 @@ forest_plot <- function(
   strip_placement <- match.arg(strip_placement)
   facet_formula <- stats::as.formula(facet_formula)
   
+  y_facet_text_angle<- ifelse(facet_switch %in% c("x","none"),
+         y_facet_text_angle-0,
+         y_facet_text_angle)
 
   if (x_facet_text_size <= 0) {
     x.strip.text <- ggplot2::element_blank()
+    table.x.strip.text <- x.strip.text
   } else {
     x.strip.text <- ggplot2::element_text(size = x_facet_text_size,
                                           angle= x_facet_text_angle,
@@ -320,26 +341,20 @@ forest_plot <- function(
                                           hjust = x_facet_text_hjust,
                                           vjust = x_facet_text_vjust
                                           )
+    table.x.strip.text <- x.strip.text
+
   }
   if (y_facet_text_size <= 0) {
     y.strip.text <- ggplot2::element_blank()
     table.y.strip.text <- y.strip.text
   } else {
     y.strip.text <- ggplot2::element_text(size = y_facet_text_size,
-                                          angle= ifelse(facet_switch %in% c("x","none"),
-                                                        y_facet_text_angle-180,
-                                                        y_facet_text_angle),
+                                          angle= y_facet_text_angle,
                                           face = ifelse(xy_facet_text_bold,"bold","plain"),
                                           hjust = y_facet_text_hjust,
                                           vjust = y_facet_text_vjust
                                           )
-   table.y.strip.text <- ggplot2::element_text(size = y_facet_text_size,
-                                               angle= ifelse(table_facet_switch %in% c("x","none"),
-                                                             y_facet_text_angle-180,
-                                                             y_facet_text_angle),
-                                               face = ifelse(xy_facet_text_bold,"bold","plain"),
-                                               hjust = y_facet_text_hjust,
-                                               vjust = y_facet_text_vjust) 
+   table.y.strip.text <- y.strip.text
   }
   
   if (theme_benrich && y_facet_text_size >0){
@@ -348,9 +363,7 @@ forest_plot <- function(
       vjust=1,
       face="bold",
       size=y_facet_text_size,
-      angle= ifelse(facet_switch %in% c("x","none"),
-                    y_facet_text_angle-180,
-                    y_facet_text_angle)
+      angle= y_facet_text_angle
     )
     
     table.y.strip.text <- ggplot2::element_text(
@@ -358,9 +371,7 @@ forest_plot <- function(
       vjust=1,
       face="bold",
       size=y_facet_text_size,
-      angle= ifelse(table_facet_switch %in% c("x","none"),
-                    y_facet_text_angle-180,
-                    y_facet_text_angle)
+      angle= y_facet_text_angle
     )
   }
 
@@ -432,8 +443,8 @@ forest_plot <- function(
       xmin = "lower",
       xmax = "upper"
     )) +
-    ggstance::geom_pointrangeh(
-      position = ggstance::position_dodgev(height = vertical_dodge_height),
+    ggplot2::geom_pointrange(
+      position = ggplot2::position_dodge(width = vertical_dodge_height),
       ggplot2::aes_string(color = "pointintervalcolor"),
       size = 1,
       alpha = 0
@@ -472,8 +483,8 @@ forest_plot <- function(
       )
   }
   main_plot <- main_plot+
-    ggstance::geom_pointrangeh(
-      position = ggstance::position_dodgev(height = vertical_dodge_height),
+    ggplot2::geom_pointrange(
+      position = ggplot2::position_dodge(width = vertical_dodge_height),
       ggplot2::aes_string(color = "pointintervalcolor"),
       size = 1,
       alpha = 0.8
@@ -502,27 +513,85 @@ forest_plot <- function(
     main_plot <- main_plot +
       ggplot2::aes_string(shape = "paramname")
   }
-
+  if (!is.function(facet_labeller)) {
+  if (facet_labeller != "label_wrap_gen") {
   if (facet_switch != "none") {
     main_plot <- main_plot +
       ggplot2::facet_grid(facet_formula,
                           scales = facet_scales,
                           space = facet_space,
                           switch = facet_switch,
-                          labeller = facet_labeller)
+                          labeller = eval(parse(
+                            text=paste0("function(labs){",facet_labeller,
+                                        "(labs, multi_line = ",facet_labeller_multiline,")}")
+                          ,keep.source = FALSE))
+                          )
   } else {
     main_plot <- main_plot +
       ggplot2::facet_grid(facet_formula,
                           scales = facet_scales,
                           space = facet_space,
                           switch = NULL,
-                          labeller = facet_labeller)
+                          labeller = eval(parse(
+                            text=paste0("function(labs){",facet_labeller,
+                                        "(labs, multi_line = ",facet_labeller_multiline,")}")
+                            ,keep.source = FALSE))
+                          )
   }
-
+  }
+  if (facet_labeller == "label_wrap_gen") {
+    if (facet_switch != "none") {
+      main_plot <- main_plot +
+        ggplot2::facet_grid(facet_formula,
+                            scales = facet_scales,
+                            space = facet_space,
+                            switch = facet_switch,
+                            labeller = ggplot2::label_wrap_gen(width =
+                                                        label_wrap_width,
+                                                      multi_line =
+                                                        facet_labeller_multiline)
+        )
+    } else {
+      main_plot <- main_plot +
+        ggplot2::facet_grid(facet_formula,
+                            scales = facet_scales,
+                            space = facet_space,
+                            switch = NULL,
+                            labeller = ggplot2::label_wrap_gen(width =
+                                                       label_wrap_width,
+                                                      multi_line =
+                                                        facet_labeller_multiline)
+        )
+    }
+  }
+  }
+  if (is.function(facet_labeller)) {
+      if (facet_switch != "none") {
+        main_plot <- main_plot +
+          ggplot2::facet_grid(facet_formula,
+                              scales = facet_scales,
+                              space = facet_space,
+                              switch = facet_switch,
+                              labeller = facet_labeller
+          )
+      } else {
+        main_plot <- main_plot +
+          ggplot2::facet_grid(facet_formula,
+                              scales = facet_scales,
+                              space = facet_space,
+                              switch = NULL,
+                              labeller = facet_labeller
+                              )
+      }
+    }
   main_plot <- main_plot +
     ggplot2::theme_bw(base_size = base_size) +
     ggplot2::theme(
       axis.text.y = ggplot2::element_text(
+        angle = 0,
+        size = y_label_text_size
+      ),
+      axis.text.y.left = ggplot2::element_text(
         angle = 0,
         size = y_label_text_size
       ),
@@ -533,6 +602,7 @@ forest_plot <- function(
       legend.key.width = ggplot2::unit(3, "line"),
       strip.text.x = x.strip.text,
       strip.text.y = y.strip.text,
+      strip.text.y.left = y.strip.text,
       panel.grid.minor = ggplot2::element_line(colour = "gray", linetype = "dotted"),
       panel.grid.major = ggplot2::element_line(colour = "gray", linetype = "solid"),
       strip.background = ggplot2::element_rect(fill = strip_col),
@@ -587,7 +657,10 @@ forest_plot <- function(
   
   main_plot <- main_plot +
     ggplot2::scale_x_continuous(trans = ifelse(logxscale,"log","identity"))
-  
+  if (break_ylabel) {
+    main_plot <- main_plot +
+      ggplot2::scale_y_discrete(labels = label_wrap(y_label_text_width))
+  }
   if (length(major_x_ticks) || length(minor_x_ticks)) {
     main_plot <- main_plot +
       ggplot2::scale_x_continuous(trans = ifelse(logxscale,"log","identity"),
@@ -605,10 +678,11 @@ forest_plot <- function(
     main_plot <- main_plot +
       ggplot2::theme(
        panel.spacing=ggplot2::unit(0, "pt"),
-       panel.grid=ggplot2::element_blank(),
-       panel.grid.minor=ggplot2::element_blank(),
-       strip.background=ggplot2::element_blank(),
+       panel.grid = ggplot2::element_blank(),
+       panel.grid.minor = ggplot2::element_blank(),
+       strip.background = ggplot2::element_blank(),
        strip.text.y = y.strip.text,
+       strip.text.y.left = y.strip.text,
        strip.text.x= x.strip.text,
        plot.margin = ggplot2::margin(t=3,r=3,b=3,l=3,unit="pt")
        )
@@ -626,25 +700,79 @@ forest_plot <- function(
           hjust = 0.5
         ),
         size = table_text_size,
-        position = ggstance::position_dodgev(height = vertical_dodge_height)
+        position = ggplot2::position_dodge(width = vertical_dodge_height)
       )
-
+    if ( !is.function(facet_labeller))  {
+    if (facet_labeller != "label_wrap_gen") {
     if (table_facet_switch != "none") {
       table_plot <- table_plot +
         ggplot2::facet_grid(facet_formula,
                             scales = facet_scales,
                             space = facet_space,
                             switch = table_facet_switch,
-                            labeller = facet_labeller)
+                            labeller = eval(parse(
+                              text=paste0("function(labs){",facet_labeller,
+                                          "(labs, multi_line = ",facet_labeller_multiline,")}")
+                              ,keep.source = FALSE))
+                            )
     } else {
       table_plot <- table_plot +
         ggplot2::facet_grid(facet_formula,
                             scales = facet_scales,
                             space = facet_space,
                             switch = NULL,
-                            labeller = facet_labeller)
+                            labeller =  eval(parse(
+                              text=paste0("function(labs){",facet_labeller,
+                                          "(labs, multi_line = ",facet_labeller_multiline,")}")
+                              ,keep.source = FALSE))
+                            )
     }
-
+    }
+    if (facet_labeller == "label_wrap_gen") {
+      if (table_facet_switch != "none") {
+        table_plot <- table_plot +
+          ggplot2::facet_grid(facet_formula,
+                              scales = facet_scales,
+                              space = facet_space,
+                              switch = table_facet_switch,
+                              labeller = ggplot2::label_wrap_gen(width =
+                                                          label_wrap_width,
+                                                        multi_line =
+                                                          facet_labeller_multiline)
+                              )
+      } else {
+        table_plot <- table_plot +
+          ggplot2::facet_grid(facet_formula,
+                              scales = facet_scales,
+                              space = facet_space,
+                              switch = NULL,
+                              labeller = ggplot2::label_wrap_gen(width =
+                                                          label_wrap_width,
+                                                        multi_line =
+                                                          facet_labeller_multiline)
+                              )
+      }
+    }
+    }
+    if (is.function(facet_labeller)) {
+      if (facet_switch != "none") {
+        table_plot <- table_plot +
+          ggplot2::facet_grid(facet_formula,
+                              scales = facet_scales,
+                              space = facet_space,
+                              switch = facet_switch,
+                              labeller = facet_labeller
+          )
+      } else {
+        table_plot <- table_plot +
+          ggplot2::facet_grid(facet_formula,
+                              scales = facet_scales,
+                              space = facet_space,
+                              switch = NULL,
+                              labeller = facet_labeller
+          )
+      }
+    }
     table_plot <- table_plot +
       ggplot2::theme_bw(base_size = base_size) +
       ggplot2::theme(
@@ -652,10 +780,15 @@ forest_plot <- function(
           angle = 0,
           size = y_label_text_size
         ),
-        strip.text.x = x.strip.text,
+        axis.text.y.left = ggplot2::element_text(
+          angle = 0,
+          size = y_label_text_size
+        ),
+        strip.text.x = table.x.strip.text,
         axis.text.x = ggplot2::element_text(size = x_label_text_size),
         axis.ticks.x= ggplot2::element_blank(),
         strip.text.y = table.y.strip.text,
+        strip.text.y.left = table.y.strip.text,
         axis.title.x = ggplot2::element_blank(),
         axis.title.y = ggplot2::element_blank(),
         panel.grid.major.x = ggplot2::element_blank(),
@@ -684,6 +817,7 @@ forest_plot <- function(
         ggplot2::theme(
           strip.text.x = ggplot2::element_blank(),
           strip.text.y = ggplot2::element_blank(),
+          strip.text.y.left = ggplot2::element_blank(),
           strip.background.x = ggplot2::element_blank(),
           strip.background.y = ggplot2::element_blank()
         )
@@ -701,6 +835,7 @@ forest_plot <- function(
       table_plot <- table_plot +
         ggplot2::theme(
           strip.text.y = ggplot2::element_blank(),
+          strip.text.y.left = ggplot2::element_blank(),
           strip.background.y = ggplot2::element_blank()
         )
     }
@@ -711,6 +846,7 @@ forest_plot <- function(
         ggplot2::theme(
           axis.title.y = ggplot2::element_blank(),
           axis.text.y = ggplot2::element_blank(),
+          axis.text.y.left = ggplot2::element_blank(),
           axis.ticks.y = ggplot2::element_blank()
         )
     }
@@ -744,32 +880,27 @@ forest_plot <- function(
       if (show_table_facet_strip %in% c("y")) {
         table_plot <- table_plot +
           ggplot2::theme(
-            strip.text.y= y.strip.text
+            strip.text.y= table.y.strip.text
           )
       }
       if (show_table_facet_strip %in% c("x")) {
         table_plot <- table_plot +
           ggplot2::theme(
-            strip.text.x=ggplot2::element_text(
-               face ="bold",
-               size = x_facet_text_size,
-               angle = x_facet_text_angle
-            )
+            strip.text.x = table.x.strip.text
           )
       }  
       if (show_table_facet_strip %in% c("both")) {
         table_plot <- table_plot +
           ggplot2::theme(
-            strip.text.y=y.strip.text,
-            strip.text.x=ggplot2::element_text(
-              face = "bold",
-              size =x_facet_text_size,
-              angle=x_facet_text_angle
-            )
+            strip.text.y= table.y.strip.text,
+            strip.text.x= table.x.strip.text
           )
       }    
-           
       
+      if (break_ylabel) {
+        table_plot <- table_plot +
+          ggplot2::scale_y_discrete(labels = label_wrap(y_label_text_width)) 
+      }
     }
   }
 
@@ -798,4 +929,5 @@ if (return_list){
   }
   result
 }
+
 

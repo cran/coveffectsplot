@@ -12,7 +12,7 @@ forest_plot(
   x_facet_text_size = 13,
   y_facet_text_size = 13,
   x_facet_text_angle = 0,
-  y_facet_text_angle = 180,
+  y_facet_text_angle = 0,
   x_facet_text_vjust = 0.5,
   y_facet_text_vjust = 0.5,
   x_facet_text_hjust = 0.5,
@@ -20,6 +20,8 @@ forest_plot(
   xy_facet_text_bold = TRUE,
   x_label_text_size = 16,
   y_label_text_size = 16,
+  break_ylabel = FALSE,
+  y_label_text_width = 25,
   table_text_size = 7,
   base_size = 22,
   theme_benrich = FALSE,
@@ -47,6 +49,8 @@ forest_plot(
   facet_scales = c("fixed", "free_y", "free_x", "free"),
   facet_space = c("fixed", "free_x", "free_y", "free"),
   facet_labeller = "label_value",
+  label_wrap_width = 55,
+  facet_labeller_multiline = FALSE,
   strip_placement = c("inside", "outside"),
   strip_outline = TRUE,
   facet_spacing = 5.5,
@@ -105,6 +109,10 @@ forest_plot(
 \item{x_label_text_size}{X axis labels size.}
 
 \item{y_label_text_size}{Y axis labels size.}
+
+\item{break_ylabel}{Split Y axis labels into multiple lines. Logical FALSE TRUE.}
+
+\item{y_label_text_width}{Number of characters to break Y axis labels.}
 
 \item{table_text_size}{Table text size.}
 
@@ -166,6 +174,11 @@ share the same text?}
 
 \item{facet_labeller}{Facet Labeller. Default "label_value"
 any other valid `facet_grid` labeller can be specified.}
+
+\item{label_wrap_width}{How many characters before breaking the line. Numeric value.
+any other valid `facet_grid` labeller can be specified.}
+
+\item{facet_labeller_multiline}{break facet strips into multiple lines. Logical TRUE FALSE.}
 
 \item{strip_placement}{Strip placement. Possible values: "inside", "outside".}
 
@@ -229,6 +242,7 @@ Produce forest plots to visualize covariate effects
 }
 \examples{
 library(dplyr)
+library(ggplot2)
 
 # Example 1
 
@@ -281,6 +295,7 @@ forest_plot(plotdata,
             x_facet_text_size = 10,
             y_facet_text_size = 10,
             y_label_text_size = 10,
+            y_label_text_width = 15,
             x_label_text_size = 10,
             facet_switch = "both",
             show_table_facet_strip = "both",

@@ -1,11 +1,14 @@
 ## ----setup, include = FALSE---------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
-  warning =FALSE,
   message =FALSE,
-  comment = "#>",
-  dev.args = list(png = list(type = "cairo"))
+  warning =FALSE,
+  fig.width = 7,
+  comment = "#>"
 )
+if (capabilities(("cairo"))) {
+  knitr::opts_chunk$set(dev.args = list(png = list(type = "cairo")))
+}
 library(coveffectsplot)
 library(ggplot2)
 library(ggridges)

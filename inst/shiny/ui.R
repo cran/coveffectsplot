@@ -4,7 +4,7 @@ inline_ui <- function(tag) {
 
 fluidPage(
   useShinyjs(),
-  titlePanel("ForestPlotteR!"),
+  titlePanel(paste0("coveffectsplot: ",utils::packageVersion("coveffectsplot"))),
   fluidRow(
     column(
       2,
@@ -53,7 +53,8 @@ fluidPage(
         ), # tabPanel
         tabPanel("Facets",
                  selectInput(  "facetformula", "Facet Formula:",
-                               choices = c("covname ~ .","covname~paramname"),
+                               choices = c("covname ~ .",
+                                           "covname ~ paramname"),
                                selected = c("covname ~ ."),
                                multiple = FALSE),
                  
@@ -64,7 +65,7 @@ fluidPage(
                  sliderInput("facettextx", "Facet Text Size X",
                              min = 0, max = 32, step = 1, value = 22),
                  sliderInput("facettextyangle", "Facet Text Angle Y",
-                             min = 90, max = 180+90, step = 90, value = 180),
+                             min = 0, max = 180+90, step = 90, value = 0),
                  sliderInput("facettextxangle", "Facet Text Angle X",
                              min = 0, max = 90, step = 90, value = 0),
                  checkboxInput('boldfacettext', "Bold Facet Text", value = TRUE)
@@ -78,6 +79,23 @@ fluidPage(
                                       min = 0, max = 1, step = 0.1, value = 0.5),
                  sliderInput("y_facet_text_hjust", "Facet Text Horizontal Justification y",
                                       min = 0, max = 1, step = 0.1, value = 0.5)
+                 ),
+                 tabPanel("Facet Labels",
+                          selectInput('facetlabeller' ,'Facet Label:',c(
+                            "Variable(s) Name(s) and Value(s)" ="label_both",
+                            "Value(s)"="label_value",
+                            "Parsed Expression" ="label_parsed",
+                            "Depends on Context" ="label_context",
+                            "Wrap lines" ="label_wrap_gen"),
+                            selected="label_value"),
+                          conditionalPanel(
+                            condition = "input.facetlabeller== 'label_wrap_gen'  " ,
+                            sliderInput("labelwrapwidth", "N Characters to Wrap Labels:",
+                                        min=1, max=100, value=c(25),step=1)
+                          ),
+                          checkboxInput('facetwrapmultiline',
+                                        'Strip labels on multiple lines?',
+                                        value = TRUE)
                  )
                  ),
                  selectizeInput(  "stripplacement", "Strip Placement:",
@@ -98,6 +116,10 @@ fluidPage(
         tabPanel(
           "X/Y Axes",
           sliderInput("ylablesize", "Y axis labels size", min=1, max=32, value=24,step=0.5),
+          checkboxInput('breakylabel', "Break long Y axis labels?", value = FALSE),
+          conditionalPanel(
+            condition = "input.breakylabel" ,
+            sliderInput("ylabeltextwidth", "Y axis Width to break at:", min=1, max=40, value=25, step=1)),
           sliderInput("xlablesize", "X axis labels size", min=1, max=32, value=24,step=0.5),
           checkboxInput('showyaxisgridlines', "Keep Y axis Gridlines", value = TRUE),
           checkboxInput('showxaxisgridlines', "Keep X axis Gridlines", value = TRUE),
@@ -124,9 +146,13 @@ fluidPage(
           ),
           checkboxInput('logxscale', 'Log-scale X axis ?', value = FALSE),
           textInput("yaxistitle", label = "Y axis Title", value = ""),
-          checkboxInput('parseyaxistitle', 'Parse Y axis Title?', value = FALSE),
+          conditionalPanel(
+            condition = "input.yaxistitle!=''" ,
+          checkboxInput('parseyaxistitle', 'Parse Y axis Title?', value = FALSE)),
           textInput("xaxistitle", label = "X axis Title", value = ""),
-          checkboxInput('parsexaxistitle', 'Parse X axis Title?', value = FALSE)
+          conditionalPanel(
+            condition = "input.xaxistitle!=''" ,
+          checkboxInput('parsexaxistitle', 'Parse X axis Title?', value = FALSE))
         ),
         tabPanel(
           "How To",

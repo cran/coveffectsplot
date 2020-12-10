@@ -1,6 +1,6 @@
 function(input, output, session) {
   maindata <- reactiveVal(NULL)
-
+  
   # If this app was launched from a function that explicitly set an initial dataset
   if (exists("coveffectsplot_initdata")) {
     maindata(get("coveffectsplot_initdata"))
@@ -23,6 +23,7 @@ function(input, output, session) {
     shinyjs::show("covvalueorder")
     shinyjs::show("shapebyparamname")
     shinyjs::show("vdodgeheight")
+    #shinyjs::show("get_code")
   })
 
   # Update the options in different inputs based on data
@@ -55,7 +56,6 @@ function(input, output, session) {
 
   formatstats  <- reactive({
     shiny::req(maindata())
-    
     validate(need(
       length(input$covariates) >= 1,
       "Please select a least one covariate or All"
@@ -65,21 +65,22 @@ function(input, output, session) {
       "Please select a least one covariate/All level"
     ))
     df <- maindata()
-    df$covname <- factor(df$covname)
-    df$label <- factor(df$label)
-    df$exposurename <- df$paramname
-    sigdigits <- input$sigdigits
-    summarydata <- df %>%
-      group_by(paramname, covname, label) %>%
-      mutate(
-        MEANEXP = mid,
-        LOWCI = lower,
-        UPCI =  upper,
-        MEANLABEL = signif_pad(MEANEXP, sigdigits),
-        LOWCILABEL = signif_pad(LOWCI, sigdigits),
-        UPCILABEL = signif_pad(UPCI, sigdigits),
-        LABEL = paste0(MEANLABEL, " [", LOWCILABEL, "-", UPCILABEL, "]")
-      )
+    
+      df$covname <- factor(df$covname)
+      df$label <- factor(df$label)
+      df$exposurename <- df$paramname
+      sigdigits <- input$sigdigits
+      summarydata <- df %>%
+        group_by(paramname, covname, label) %>%
+        mutate(
+          MEANEXP = mid,  
+          LOWCI = lower,  
+          UPCI =  upper,  
+          MEANLABEL = signif_pad(MEANEXP, sigdigits),  
+          LOWCILABEL = signif_pad(LOWCI, sigdigits),  
+          UPCILABEL = signif_pad(UPCI, sigdigits),  
+          LABEL = paste0(MEANLABEL, " [", LOWCILABEL, "-", UPCILABEL, "]") 
+        )
 
     summarydata$covvalue <- factor(summarydata$label)
     summarydata <- summarydata %>%
@@ -105,7 +106,6 @@ function(input, output, session) {
       step = ystep,
       animate = FALSE
     )
-
   })
   
   outputOptions(output, "refarea", suspendWhenHidden=FALSE)
@@ -175,6 +175,8 @@ summarydata <- plotdataprepare()
         xy_facet_text_bold = input$boldfacettext,
         x_label_text_size = input$xlablesize,
         y_label_text_size = input$ylablesize,
+        break_ylabel = input$breakylabel,
+        y_label_text_width = input$ylabeltextwidth,
         table_text_size = input$tabletextsize,
         base_size = input$base_size,
         theme_benrich = input$theme_benrich,
@@ -201,6 +203,9 @@ summarydata <- plotdataprepare()
         facet_switch = input$facetswitch,
         facet_scales = input$facetscales,
         facet_space = input$facetspace,
+        facet_labeller = input$facetlabeller,
+        label_wrap_width = input$labelwrapwidth,
+        facet_labeller_multiline = input$facetwrapmultiline,        
         strip_placement = input$stripplacement,
         strip_outline = input$removestrip,
         facet_spacing = input$panelspacing,
