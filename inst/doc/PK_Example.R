@@ -1,5 +1,6 @@
 ## ---- include = FALSE---------------------------------------------------------
 knitr::opts_chunk$set(
+  dev = "png",
   collapse = TRUE,
   message =FALSE,
   warning =FALSE,
@@ -324,7 +325,7 @@ pkprofileuncertainty<- ggplot(iter_sims, aes(x=time, y=CP, col=factor(WT), linet
   geom_line(aes(group=interaction(ID, rep)), alpha=0.1, size=0.1) +
   geom_line(data = outcovcomb, aes(group=interaction(ID)),
             alpha= 1, size=0.7, colour = "black") +
-  facet_grid(ALB ~ WT, labeller=label_both) +
+  facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value, WT = label_both)) +
   labs(
     x        = "Time (h)",
     y        = "Plasma Concentrations",
@@ -335,9 +336,9 @@ pkprofileuncertainty<- ggplot(iter_sims, aes(x=time, y=CP, col=factor(WT), linet
   guides(colour = guide_legend(override.aes = list(alpha = 1)))
 pkprofileuncertainty
 
-## ---- fig.width=7, include=FALSE, message=FALSE-------------------------------
+## ---- fig.width=7, include=TRUE, message=FALSE--------------------------------
 out.df.univariatecov.nca <- iter_sims[, derive.exposure(time, CP), by=.(rep, ID, WT, SEX, ALB)]
-out.df.univariatecov.nca
+#out.df.univariatecov.nca
 
 refvalues <- out.df.univariatecov.nca[
   ALB==45 & WT==85 & SEX=="Female",
@@ -578,7 +579,6 @@ dev.off()
 
 ## ----message=FALSE,fig.width=7------------------------------------------------
 png("./coveffectsplot0.png",width =9 ,height = 6,units = "in",res=72)
-
 plotlists <- coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             ref_area = c(0.8, 1/0.8),
                             xlabel = "Fold Change Relative to Reference",
@@ -649,7 +649,7 @@ dev.off()
 
 ## ----echo=FALSE---------------------------------------------------------------
 # uncomment in interactive mode
-# run_interactiveforestplot(coveffectsdatacovrepbsv)
+# run_interactiveforestplot(fpdata[paramname=="AUC"])
 
 ## ---- fig.width=7, fig.height=6,message=FALSE---------------------------------
 png("./coveffectsplot6.png",width =9.5 ,height = 6,units = "in",res=72)

@@ -15,6 +15,11 @@ label_wrap <- function(width) {
                   paste0, collapse = "\n"))
   }
 }
+
+"%||%" <- function(a, b) {
+  if (!is.null(a)) a else b
+}
+
 #' Forest plot
 #'
 #' Produce forest plots to visualize covariate effects
@@ -39,7 +44,7 @@ label_wrap <- function(width) {
 #' @param table_text_size Table text size.
 #' @param base_size theme_bw base_size for the plot and table.
 #' @param theme_benrich apply Benjamin Rich's theming.
-#' @param table_title with theme_benrich on what text to use for table title.
+#' @param table_title What text to use for table title (theme_benrich has a default).
 #' @param table_title_size table title size.
 #' @param ref_legend_text Reference legend text.
 #' @param area_legend_text Area legend text.
@@ -56,8 +61,13 @@ label_wrap <- function(width) {
 #' @param ref_value X intercept of reference line.
 #' @param ref_area_col Reference area background color.
 #' @param ref_value_col Reference line color.
+#' @param ref_value_size Reference line size.
+#' @param ref_value_linetype Reference line linetype.
 #' @param interval_col Point range color. One value.
+#' @param interval_size Point range size. Default to 1
+#' @param interval_fatten Point range fatten. Default to 4
 #' @param bsv_col  BSV pointinterval color. One value.
+#' @param bsv_text_id Text string(s) to identify BSV. Default to c("BSV","bsv","IIV","Bsv")
 #' @param interval_bsv_text BSV legend text.
 #' @param strip_col Strip background color.
 #' @param paramname_shape Map symbol to parameter(s)?
@@ -102,6 +112,7 @@ label_wrap <- function(width) {
 #' for the top, right, bottom and left sides.
 #' @param parse_xlabel treat xlabel as an expression. Logical FALSE TRUE.
 #' @param parse_ylabel treat ylabel as an expression. Logical FALSE TRUE.
+#' @param plot_title main plot title default to a line break.
 #' @param return_list What to return if True a list of the main and table plots is returned
 #' instead of the gtable/plot.
 #' @rawNamespace import(data.table, except = c(last,between,first))
@@ -272,8 +283,13 @@ forest_plot <- function(
   ref_value = 1,
   ref_area_col = "#BEBEBE50",
   ref_value_col = "black",
+  ref_value_size = 1,
+  ref_value_linetype = "dashed",
   interval_col = "blue",
+  interval_size = 1,
+  interval_fatten = 4,
   bsv_col = "red",
+  bsv_text_id = c("BSV","bsv","IIV","Bsv"),
   interval_bsv_text = "",
   strip_col = "#E5E5E5",
   paramname_shape = FALSE,
@@ -309,6 +325,7 @@ forest_plot <- function(
   legend_margin = c(0, 0.1, -0.1, 0),
   parse_xlabel = FALSE,
   parse_ylabel = FALSE,
+  plot_title = "\n",
   return_list = FALSE)
 {
   ymax = ymin = x = fill = label_wrap_gen = NULL
@@ -385,7 +402,7 @@ forest_plot <- function(
     ylabel <-   parse(text=ylabel)
   }
   
-  if (table_title == "") {
+  if (table_title == "" && theme_benrich) {
     table_title <- "Median [95% CI]"
   }
   if (ref_legend_text == "") {
@@ -424,8 +441,7 @@ forest_plot <- function(
   if( shape_pos==0) guide_shape = FALSE
   
   data$label <- factor(data$label)
-  data$pointintervalcolor <-  ifelse( !data$covname%in%
-                                        c("BSV","bsv","IIV","Bsv"),
+  data$pointintervalcolor <-  ifelse( !data$covname%in% bsv_text_id,
                                       interval_legend_text,
                                       interval_bsv_text)
   data$pointintervalcolor <- factor(data$pointintervalcolor,
@@ -443,11 +459,9 @@ forest_plot <- function(
       xmin = "lower",
       xmax = "upper"
     )) +
-    ggplot2::geom_pointrange(
+    ggplot2::geom_blank(
       position = ggplot2::position_dodge(width = vertical_dodge_height),
       ggplot2::aes_string(color = "pointintervalcolor"),
-      size = 1,
-      alpha = 0
     )# dummy to prevent a scales bug that I reported to ggplot2 maintainers
 
   if (show_ref_area) {
@@ -479,19 +493,19 @@ forest_plot <- function(
     main_plot <- main_plot +
       ggplot2::geom_vline(
         ggplot2::aes(xintercept = ref_value, linetype = ref_legend_text),
-        size = 1, color = ref_value_col 
+        size = ref_value_size, color = ref_value_col 
       )
   }
   main_plot <- main_plot+
     ggplot2::geom_pointrange(
       position = ggplot2::position_dodge(width = vertical_dodge_height),
       ggplot2::aes_string(color = "pointintervalcolor"),
-      size = 1,
-      alpha = 0.8
+      size = interval_size, fatten = interval_fatten,
+      key_glyph = "pointrangeh"
     )+
     ggplot2::scale_colour_manual("", breaks = colbreakvalues,
                                  values = c(interval_col,bsv_col)) +
-    ggplot2::scale_linetype_manual("", breaks = ref_legend_text, values = 2) +
+    ggplot2::scale_linetype_manual("", breaks = ref_legend_text, values = ref_value_linetype) +
     ggplot2::scale_fill_manual("", breaks = area_legend_text, values = ref_area_col)+
     ggplot2::guides(colour = guide_interval,
                     linetype = guide_linetype,
@@ -619,10 +633,12 @@ forest_plot <- function(
                                      b = plot_margin[3],
                                      l = plot_margin[4],
                                      unit='pt')
-    ) +
-    ggplot2::ggtitle("\n") 
-  
-  
+    )  
+
+  if (!is.null(plot_title) & plot_title!="") {
+    main_plot <- main_plot +
+      ggplot2::ggtitle(plot_title)
+  }
   
   if (!strip_outline) {
     main_plot <- main_plot +
@@ -857,6 +873,16 @@ forest_plot <- function(
           axis.ticks.x= ggplot2::element_blank()
         )
     }
+    if (table_title!="") {
+      table_plot <- table_plot +
+      ggplot2::ggtitle(table_title)+
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(
+            size = table_title_size, hjust=0.5, vjust=1,
+            margin = ggplot2::margin(b = ggplot2::unit(6, "pt")))
+        )
+    }
+    
     if (!table_panel_border) {
       table_plot <- table_plot +
         ggplot2::theme(
@@ -869,7 +895,7 @@ forest_plot <- function(
         ggplot2::ggtitle(table_title)+
          ggplot2::theme(
            plot.title=ggplot2::element_text(
-             size=table_title_size,hjust=0.5, vjust=1,margin=
+             size=table_title_size,hjust=0.5, vjust=1, margin=
                ggplot2::margin(b=ggplot2::unit(6, "pt"))),
            strip.background=ggplot2::element_blank(),
            panel.border = ggplot2::element_blank(),
@@ -922,7 +948,8 @@ forest_plot <- function(
     )
   }
 if (return_list){
-  result <-  list(main_plot,table_plot)
+  if(table_position == "none") result <-  list(main_plot)
+  if(table_position != "none") result <-  list(main_plot,table_plot)
 }
   if (!return_list){
   result <- result
@@ -930,4 +957,32 @@ if (return_list){
   result
 }
 
+#' Horizontal key drawing functions from ggstance in case it is deprecated
+#'
+#' @inheritParams ggplot2::draw_key
+#' @return A grid grob.
+#' @name draw_key
+globalVariables(c("alpha", ".pt"))
 
+#' @rdname draw_key
+#' @export
+draw_key_hpath <- function(data, params, size) {
+  grid::segmentsGrob(0.1, 0.5, 0.9, 0.5,
+               gp = grid::gpar(
+                 col = alpha(data$colour %||% data$fill %||% "black", data$alpha),
+                 lwd = (data$size %||% 0.5) * .pt,
+                 lty = data$linetype %||% 1,
+                 lineend = "butt"
+               ),
+               arrow = params$arrow
+  )
+}
+
+#' @rdname draw_key
+#' @export
+draw_key_pointrangeh <- function(data, params, size) {
+  grid::grobTree(
+    draw_key_hpath(data, params, size),
+    ggplot2::draw_key_point(transform(data, size = (data$size %||% 1.5) * 4), params)
+  )
+}

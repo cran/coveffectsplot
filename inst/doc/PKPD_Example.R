@@ -313,8 +313,8 @@ pdprofiles <- ggplot(iter_sims[iter_sims$rep<=10,], aes(time/24,PDRESP,col=facto
   geom_line(aes(group=interaction(ID,rep)),alpha=0.3,size=0.3)+
   geom_line(data=outcovcomb,aes(group=interaction(ID)),color="black")+
   facet_grid(SEX+ALB~ AGE+WT,labeller = label_both)+
-  labs(linetype="No Uncertainty\nHealthy",
-       colour="Uncertainty\nReplicates\n(1 to 10)\nWeight (kg)",
+  labs(linetype="Black Lines\nNo Uncertainty\nHealthy Status",
+       colour="Colored Lines\nUncertainty\nReplicates\n(1 to 10)\nWeight (kg)",
        caption ="Simulation\nwith Uncertainty without BSV" ,
        x="Days", y = "PD Values")+
   guides(colour = guide_legend(override.aes = list(alpha = 1)))

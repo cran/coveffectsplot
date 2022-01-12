@@ -37,6 +37,11 @@ expit <- function(x) exp(x)/ (1 + exp(x) )
  
 
 ## ----exprespmodel, collapse=TRUE----------------------------------------------
+# the typical probability from the model parameters will be :
+TypicalProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*75/10/(7.5+75/10)))))
+MaxProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*750/10/(7.5+750/10)))))
+MinProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*0/10/(7.5+0/10)))))
+
 exprespmodel <- '
 $PLUGIN Rcpp
 $PARAM @annotated
@@ -66,11 +71,6 @@ capture LGST = Intercept + (EMAX*AUC/(AUC50+AUC));
 capture P1 = 1/(1+exp(-LGST));
 capture DV = R::runif(0,1)< P1 ? 1 : 0;
 '
-# the typical probability from the model parameters will be :
-TypicalProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*75/10/(7.5+75/10)))))
-MaxProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*750/10/(7.5+750/10)))))
-MinProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*0/10/(7.5+0/10)))))
-
 
 modexprespsim <- mcode("exprespmodel", exprespmodel)
 simdata <-  expand.idata(SEV=c(0),
@@ -372,6 +372,7 @@ forest_plot(coveffectsdatacovrepbsv,
                             facet_formula = "covname~paramname",
                             facet_labeller      = labeller(paramname=yvar_names),
                             facet_scales           = "free",
+                            facet_space ="free",
                             logxscale              = TRUE,
                             major_x_ticks          = c(0.1,0.25, 0.5,1,1.5),
                             x_range                = c(0.1, 1.5))

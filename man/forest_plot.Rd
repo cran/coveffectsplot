@@ -39,8 +39,13 @@ forest_plot(
   ref_value = 1,
   ref_area_col = "#BEBEBE50",
   ref_value_col = "black",
+  ref_value_size = 1,
+  ref_value_linetype = "dashed",
   interval_col = "blue",
+  interval_size = 1,
+  interval_fatten = 4,
   bsv_col = "red",
+  bsv_text_id = c("BSV", "bsv", "IIV", "Bsv"),
   interval_bsv_text = "",
   strip_col = "#E5E5E5",
   paramname_shape = FALSE,
@@ -76,6 +81,7 @@ forest_plot(
   legend_margin = c(0, 0.1, -0.1, 0),
   parse_xlabel = FALSE,
   parse_ylabel = FALSE,
+  plot_title = "\\n",
   return_list = FALSE
 )
 }
@@ -120,7 +126,7 @@ forest_plot(
 
 \item{theme_benrich}{apply Benjamin Rich's theming.}
 
-\item{table_title}{with theme_benrich on what text to use for table title.}
+\item{table_title}{What text to use for table title (theme_benrich has a default).}
 
 \item{table_title_size}{table title size.}
 
@@ -151,9 +157,19 @@ share the same text?}
 
 \item{ref_value_col}{Reference line color.}
 
+\item{ref_value_size}{Reference line size.}
+
+\item{ref_value_linetype}{Reference line linetype.}
+
 \item{interval_col}{Point range color. One value.}
 
+\item{interval_size}{Point range size. Default to 1}
+
+\item{interval_fatten}{Point range fatten. Default to 4}
+
 \item{bsv_col}{BSV pointinterval color. One value.}
+
+\item{bsv_text_id}{Text string(s) to identify BSV. Default to c("BSV","bsv","IIV","Bsv")}
 
 \item{interval_bsv_text}{BSV legend text.}
 
@@ -233,6 +249,8 @@ for the top, right, bottom and left sides.}
 \item{parse_xlabel}{treat xlabel as an expression. Logical FALSE TRUE.}
 
 \item{parse_ylabel}{treat ylabel as an expression. Logical FALSE TRUE.}
+
+\item{plot_title}{main plot title default to a line break.}
 
 \item{return_list}{What to return if True a list of the main and table plots is returned
 instead of the gtable/plot.}

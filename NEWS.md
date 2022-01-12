@@ -1,3 +1,10 @@
+# coveffectsplot 1.0.0
+* bumped the version to 1.0 to correspond with the PSP tutorial paper (under review)
+* shinymeta on CRAN! Added back code generation in the app (contributed by Dean Attali)
+* added arguments and app options to control pointinterval size `interval_size` and `interval_fatten`
+* added arguments and app options to control ref value  `ref_value_size` and `ref_value_linetype`
+* added arguments and app options to control which text is detected as bsv `bsv_text_id`
+
 # coveffectsplot 0.0.9.1
 * Conditional use of cairo png to avoid CRAN failures
 * added back pk and pkpd vignettes after fixing R 4.0 issues
@@ -7,7 +14,6 @@
 * fixed a bug with `show_table_yaxis_tick_label` on the left
 
 # coveffectsplot 0.0.9
-
 * ui improvements and controls for the new arguments
 * added `x/y_facet_text_vjust/hjust` arguments for the facets x/y text hjust/vjust
 * added `xy_facet_text_bold` argument to control facets text face
@@ -28,7 +34,6 @@
 * added vignette on pediatric multivariate covariate simulations and removed the pk and pkpd ones
 
 # coveffectsplot 0.0.5
-
 * added an option to have different color and text for BSV (issue submitted by professor France Mentre)
 * added two vignettes showing how to simulate a PK , PK/PD and exposure response models from scratch.
 * added an argument to control theme_bw: `base_size`
@@ -39,7 +44,6 @@
 * added hooks for more control on margins, strips etc.
 
 # coveffectsplot 0.0.4
-
 * added an option to have a log x axis
 * added more control on the table strips
 
@@ -53,7 +57,6 @@
 * minor ui tweaks to enable named colors in colourpicker
 
 # coveffectsplot 0.0.2
-
 * Removed reference to the old name of the package
 * updated vignette and docs
 * tweaked the order of the shape legends to reverse
@@ -62,5 +65,4 @@
 
 
 # coveffectsplot 0.0.1
-
 * Initial Release of coveffectsplot

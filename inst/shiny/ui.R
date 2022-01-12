@@ -165,9 +165,9 @@ fluidPage(
     column(
       8,
       plotOutput('plot', height = "auto", width = "100%"),
-      # shinyjs::hidden(
-      #   actionButton("get_code", "Show Code", icon = icon("code")), br(), br()
-      # )
+      shinyjs::hidden(
+        actionButton("get_code", "Show Code", icon = icon("code")), br(), br()
+      )
     ), # column6
 
     column(
@@ -221,7 +221,13 @@ fluidPage(
                                     showColour = "both",allowTransparent=TRUE,
                                     returnName = TRUE),
           div( actionButton("colorrefvaluereset", "Reset Reference Line Color"),
-               style="text-align: right")
+               style="text-align: right"),
+          sliderInput("sizerefvalue", "Reference Line Size:",
+                      min = 0, max = 10, step = 0.1, value = 1),
+          selectInput('linetyperefvalue',
+                      'Reference Line Linetype:',c("solid","dashed",
+                                     "dotted", "dotdash",
+                                     "longdash", "twodash","blank"),selected = "dashed")
           ),#tabpanel
         
         tabPanel(
@@ -239,6 +245,10 @@ fluidPage(
                                     showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           div( actionButton("colourpointrangereset", "Reset Point Range Colour"),
                style="text-align: right"),
+          sliderInput("sizepointrange", "Point range size",
+                      min = 0, max = 10, step = 0.1, value = 1),
+          sliderInput("fattenpointrange", "Point range fatten",
+                      min = 0, max = 10, step = 0.1, value = 4),
           colourpicker::colourInput("colourbsvrange",
                                     "BSV Range Colour:",
                                     value="red",
@@ -253,7 +263,7 @@ fluidPage(
           conditionalPanel(
             condition = "input.theme_benrich",
           textInput("custom_table_title", label ="Table Title",
-                    value="Median [95% CI]"),
+                    value=""),
           sliderInput("table_title_size", "Size for Table Title",
                       min = 1, max = 30, step = 0.1, value = 15)
           ) ,
@@ -328,6 +338,7 @@ fluidPage(
         ),#tabpanel
         tabPanel(
           "Custom Legend Text",
+          textInput("customplottitle", label ="Plot Title",value = " \\n"),
           textInput("customcolourtitle", label ="Pointinterval Legend text",
                     value="Median (points)\\n95% CI (horizontal lines)"),
           textInput("custombsvtitle", label ="BSV Legend text",
