@@ -5,8 +5,9 @@ account: pharmacometrics
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1770516
-bundleId: 2857074
+bundleId: 5479963
 url: https://pharmacometrics.shinyapps.io/coveffectsplot/
-when: 1583500660.15851
+when: 1642490166.60335
+lastSyncTime: 1642490166.60335
 asMultiple: FALSE
 asStatic: FALSE
