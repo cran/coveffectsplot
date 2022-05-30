@@ -35,13 +35,49 @@ expand.modelframe <- function(..., rv, covcol="covname") {
   })
   do.call(rbind, res)
 }
-nbsvsubjects <- 1000
-nsim <- 100 # uncertainty replicates for vignette you might want a higher number
-
 round_pad <- function(x, digits = 2, round5up = TRUE) {
   eps <- if (round5up) x * (10^(-(digits + 3))) else 0
   formatC(round(x + eps, digits), digits = digits, format = "f", flag = "0")
 }
+
+
+derive.exposure <- function(time, CP) {
+  n <- length(time)
+  x <- c(
+    Cmax = max(CP),
+    Clast = CP[n],
+    AUC = sum(diff(time) * (CP[-1] + CP[-n])) / 2
+  )
+  data.table(paramname=names(x), paramvalue=x)
+}
+
+cor2cov <- function (cor, sd) 
+{
+  if (missing(sd)) {
+    sd <- diag(cor)
+  }
+  diag(cor) <- 1
+  n <- nrow(cor)
+  diag(sd, n) %*% cor %*% diag(sd, n)
+}
+
+stat_sum_df <- function(fun, geom="point", ...) {
+  stat_summary(fun.data = fun,  geom=geom,  ...)
+}
+
+summary_conc <- function(CP) {
+  x <- c(
+    Cmed = median(CP),
+    Clow = quantile(CP, probs = 0.05),
+    Cup =  quantile(CP, probs = 0.95)
+  )
+  data.table(paramname=names(x), paramvalue=x)
+}
+
+nbsvsubjects <- 1000
+nsim <- 100 # uncertainty replicates for vignette you might want a higher number
+
+
 
 ## ----pkmodel, collapse=TRUE---------------------------------------------------
 codepkmodelcov <- '
@@ -171,7 +207,7 @@ p4 <- ggplot(refbsv, aes(
         y      = paramname,
         fill   = factor(..quantile..),
         height = ..ndensity..)) +
-  facet_wrap(~ paramname, scales="free_y", ncol=1) +
+  facet_wrap(~ paramname, scales="free", ncol=1) +
   stat_density_ridges(
     geom="density_ridges_gradient", calc_ecdf=TRUE,
     quantile_lines=TRUE, rel_min_height=0.001, scale=0.9,
@@ -190,37 +226,9 @@ p4 <- ggplot(refbsv, aes(
     axis.title.y    = element_blank()) +
   labs(x="Standardized PK Parameters", y="") +
   scale_x_log10() +
-  coord_cartesian(expand=FALSE)
+  coord_cartesian(expand=FALSE, xlim = c(0.3,3))
 
 p3+p4
-
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
-# p2<- p2 + theme_bw(base_size=18)
-# 
-# p3<- p3+theme_bw(base_size=18) +
-#   theme(
-#     axis.title.x =element_text(size=12),
-#     legend.position = "none",
-#     strip.background = element_blank(),
-#     strip.text = element_blank(),
-#     plot.margin = margin(0,0,0,0))+
-#   xlab("Reference Subject\nPK Parameters with BSV")
-# p4 <- p4+theme_bw(base_size=18) +
-#   theme(
-#         axis.title.x =element_text(size=12),
-#        axis.text.y     = element_blank(),
-#     axis.ticks.y    = element_blank(),
-#     legend.position = "none",
-#     strip.background = element_blank(),
-#     strip.text = element_blank(),
-#     panel.spacing = unit(10,"mm"),
-#     plot.margin = margin(0,0,0,0))+
-#   xlab("Reference Subject\nStandardized PK Parameters")
-# (p2 + p3 +p4)
-# 
-# ggsave("Figure_4_1.png", device="png",type="cairo-png",
-#        dpi=125, width =9 ,height=4)
-
 
 ## ----computebsvpk , fig.width=7 , message=FALSE-------------------------------
 bsvranges <- refbsv[,list(
@@ -247,7 +255,7 @@ covcomb$ID <- 1:nrow(covcomb)
 
 covcomb
 
-## ---- fig.width=7 ,message=FALSE----------------------------------------------
+## ---- fig.width=7 ,message=FALSE, fig.height=5--------------------------------
 idata <- data.table::copy(covcomb)
 idata$covname <-  NULL
 ev1 <- ev(time=0, amt=100, cmt=1)
@@ -263,32 +271,31 @@ outcovcomb<- modcovsim %>%
 
 outcovcomb$SEX <- factor(outcovcomb$SEX, labels=c("Female", "Male"))
 
-ggplot(outcovcomb, aes(x=time, y=CP, col=factor(WT), linetype=SEX)) +
+pkprofiletypical <- ggplot(outcovcomb, aes(x=time, y=CP, col=factor(WT), linetype=SEX)) +
   geom_line(aes(group=ID), alpha=1, size=1.5) +
-  facet_grid(ALB ~ WT, labeller=label_both) +
+  facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value, WT = label_both),
+             switch = "y") +
   labs(
     x        = "Time (h)",
     y        = "Plasma Concentrations",
     linetype = "Sex",
     colour   = "Weight",
-    caption  = "Simulation without Uncertainty\nwithout BSV") +
-  coord_cartesian(ylim=c(0,3.5))
+    caption  = "Simulation without Uncertainty and without BSV") +
+  coord_cartesian(ylim=c(0,4))
+
+pkprofiletypical <- pkprofiletypical +theme_bw(base_size = 13)+
+  theme(axis.title.y = element_text(size=15))+
+  guides(colour=guide_legend(override.aes = list(alpha=1,size=0.5)),
+         linetype=guide_legend(override.aes = list(size=0.5)))+
+  coord_cartesian(ylim=c(0,4))
+pkprofiletypical
+
 
 ## ---- fig.width=7-------------------------------------------------------------
 theta <- unclass(as.list(param(modcovsim)))
 theta[c("WT", "SEX", "ALB")] <- NULL
 theta <- unlist(theta)
 as.data.frame(t(theta))
-
-cor2cov <- function (cor, sd) 
-{
-    if (missing(sd)) {
-        sd <- diag(cor)
-    }
-    diag(cor) <- 1
-    n <- nrow(cor)
-    diag(sd, n) %*% cor %*% diag(sd, n)
-}
 
 varcov <- cor2cov(
   matrix(0.2, nrow=length(theta), ncol=length(theta)),
@@ -302,7 +309,7 @@ set.seed(678549)
 sim_parameters <- MASS::mvrnorm(nsim, theta, varcov, empirical=T) %>% as.data.table
 head(sim_parameters)
 
-## ---- fig.width=7,fig.height=4------------------------------------------------
+## ---- fig.width=7,fig.height=4, fig.height=5----------------------------------
 idata <- data.table::copy(covcomb)
 idata$covname <-  NULL
 ev1       <- ev(time=0, amt=100, cmt=1)
@@ -321,29 +328,72 @@ for(i in 1:nsim) {
 }
 iter_sims$SEX <- factor(iter_sims$SEX, labels = c("Female", "Male"))
 
-pkprofileuncertainty<- ggplot(iter_sims, aes(x=time, y=CP, col=factor(WT), linetype=SEX)) +
-  geom_line(aes(group=interaction(ID, rep)), alpha=0.1, size=0.1) +
-  geom_line(data = outcovcomb, aes(group=interaction(ID)),
-            alpha= 1, size=0.7, colour = "black") +
-  facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value, WT = label_both)) +
+
+summary_conc <- function(CP) {
+  x <- c(
+    Cmed = median(CP),
+    Clow = quantile(CP, probs = 0.05),
+    Cup =  quantile(CP, probs = 0.95)
+  )
+  data.table(paramname=names(x), paramvalue=x)
+}
+
+# pkprofileuncertainty <- ggplot(iter_sims, aes(x=time, y=CP, col=factor(WT), linetype=SEX)) +
+#   geom_line(aes(group=interaction(ID, rep)), alpha=0.1, size=0.1) +
+#   geom_line(data = outcovcomb, aes(group=interaction(ID)),
+#             alpha= 1, size=0.7, colour = "black") +
+#   facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value, WT = label_both),
+#              switch = "y") +
+#   labs(
+#     x        = "Time (h)",
+#     y        = "Plasma Concentrations",
+#     linetype = "Sex",
+#     colour   = "Uncertainty\nReplicates\nWeight",
+#     caption  = "Simulation with Uncertainty, without BSV") +
+#   coord_cartesian(ylim=c(0,3.5))+
+#   guides(colour = guide_legend(override.aes = list(alpha = 1)))+
+#   theme_bw(base_size = 13)+
+#   theme(axis.title.y = element_text(size=15))+
+#   guides(colour=guide_legend(override.aes = list(alpha=1,size=0.5)),
+#          linetype=guide_legend(override.aes = list(size=0.5)))+
+#   coord_cartesian(ylim=c(0,4))
+
+iter_sims_sum <- iter_sims[, summary_conc(CP), by=.( time, WT, SEX, ALB)]
+iter_sims_sum <- spread(iter_sims_sum,paramname,paramvalue)
+iter_sims_sum <- as.data.frame(iter_sims_sum)
+
+pkprofileuncertainty_sum <- ggplot(iter_sims_sum, aes(x=time, col=factor(WT),
+                      fill=factor(WT),
+                      linetype=SEX)) +
+  geom_ribbon((aes(ymin= `Clow.5%` ,ymax=`Cup.95%`)), alpha=0.4,linetype=0)+
+  geom_line(aes(y=Cmed),alpha=1 , color ="black")+
+  facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value,
+                                               WT = label_both),switch = "y") +
   labs(
     x        = "Time (h)",
     y        = "Plasma Concentrations",
-    linetype = "No Uncertainty\nSex",
-    colour   = "Uncertainty\nReplicates\nWeight",
-    caption  = "Simulation with Uncertainty\nwithout BSV") +
-  coord_cartesian(ylim=c(0,3.5))+
-  guides(colour = guide_legend(override.aes = list(alpha = 1)))
-pkprofileuncertainty
+    linetype = "Sex",
+    colour   = "Uncertainty\n5-95%\nWeight",
+    fill   = "Uncertainty\n5-95%\nWeight",
+    caption  = "Simulation with Uncertainty, without BSV") +
+  theme_bw(base_size = 13)+
+  theme(axis.title.y = element_text(size=15))+
+  guides(colour=guide_legend(override.aes = list(alpha=0.4,size=0.4)),
+         fill=guide_legend(override.aes = list(alpha=0.4,size=0.4)),
+         linetype=guide_legend(override.aes = list(size=0.5)))+
+  coord_cartesian(ylim=c(0,4))
+
+pkprofileuncertainty_sum
+
 
 ## ---- fig.width=7, include=TRUE, message=FALSE--------------------------------
 out.df.univariatecov.nca <- iter_sims[, derive.exposure(time, CP), by=.(rep, ID, WT, SEX, ALB)]
-#out.df.univariatecov.nca
 
 refvalues <- out.df.univariatecov.nca[
   ALB==45 & WT==85 & SEX=="Female",
-  .(medparam = median(paramvalue)), by=paramname]
-data.frame(refvalues)
+  .(medparam = median(paramvalue)), by= .(rep,paramname) ]
+head(data.frame(refvalues))
+
 
 ## ---- fig.width=7,fig.height=5 ,message=FALSE---------------------------------
 covcomb$covvalue[covcomb$covname=="WT"] <- paste(covcomb$WT[covcomb$covname=="WT"],"kg")
@@ -358,13 +408,14 @@ out.df.univariatecov.nca <- merge(
   covcomb[, list(ID, covname, covvalue)]
 )
 
-setkey(out.df.univariatecov.nca, paramname)
+setkey(out.df.univariatecov.nca, paramname,rep)
 
 out.df.univariatecov.nca <- merge(
   out.df.univariatecov.nca,
   refvalues)
 
 out.df.univariatecov.nca[, paramvaluestd := paramvalue/medparam]
+
 
 boxplotdat <- out.df.univariatecov.nca[covname!="REF"]
 boxplotdat[covname=="WT",  covname2 := "Weight"]
@@ -407,22 +458,6 @@ pkparametersboxplot<- ggplot(boxplotdat, aes(x=covvalue, y=paramvalue))+
         strip.placement = "outside")
 pkparametersboxplot
 
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
-# pkprofileuncertainty <- pkprofileuncertainty +theme_bw(base_size = 13)+
-#   theme(axis.title.y = element_text(size=15))+
-#   guides(colour=guide_legend(override.aes = list(alpha=1,size=0.5)),
-#          linetype=guide_legend(override.aes = list(size=0.5)))+
-#   coord_cartesian(ylim=c(0,4))
-# pkprofileuncertainty
-# ggsave("Figure_4_3.png", device="png",type="cairo-png",width= 7, height = 4,dpi=72)
-# 
-# pkparametersboxplot
-# ggsave("Figure_4_4.png", device="png",type="cairo-png",width= 7, height = 4,dpi=72)
-# 
-# png("Figure_4_34.png", type="cairo-png",width= 2*7*72, height =5*72)
-# egg::ggarrange(pkprofileuncertainty,pkparametersboxplot,nrow=1)
-# dev.off()
-
 ## ---- fig.width=7, fig.height=4 ,message=FALSE--------------------------------
 out.df.univariatecov.nca[covname=="WT",      covname2 := "Weight"]
 out.df.univariatecov.nca[covname=="ALB",     covname2 := "Albumin"]
@@ -436,7 +471,7 @@ out.df.univariatecov.nca[, covvalue   := factor(covvalue, levels=unique(covvalue
 out.df.univariatecov.nca[, covname2   := factor(covname2, levels=unique(covname2))]
 out.df.univariatecov.nca[, paramname2 := factor(paramname2, levels=unique(paramname2))]
 
-ggplot(out.df.univariatecov.nca, aes(
+ggplot(out.df.univariatecov.nca[out.df.univariatecov.nca$covname!="REF",], aes(
     x      = paramvaluestd,
     y      = covvalue,
     fill   = factor(..quantile..),
@@ -470,11 +505,6 @@ ggplot(out.df.univariatecov.nca, aes(
   theme_bw() +
   labs(x="Effects Relative to Parameter Reference Value", y="")+
   scale_x_continuous(breaks=c(0.25,0.5,0.8,1/0.8,1/0.5,1/0.25),trans ="log" )
-
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
- #  last_plot()+theme(legend.position="none")
- # ggsave("Figure_4_5.png", device="png",type="cairo-png",
- #        width= 7, height = 4,dpi=72)
 
 ## ---- fig.width=7, fig.height=6-----------------------------------------------
 fpdata <- out.df.univariatecov.nca[,
@@ -521,7 +551,9 @@ ref_legend_text      <- "Reference (vertical line)\nClinically relevant limits\n
 area_legend_text     <- "Reference (vertical line)\nClinically relevant limits\n(gray area)"
 
 png("./Figure4_6.png",width =9 ,height = 6,units = "in",res=72)
-coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
+coveffectsplot::forest_plot(fpdata[paramname=="AUC" & 
+                                     covname!="Reference" &
+                                     covname!="BSV",],
                             ref_area               = c(0.8, 1/0.8),
                             x_range                = c(0.5, 2),
                             strip_placement        = "inside",
@@ -533,6 +565,7 @@ coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             area_legend_text       = area_legend_text,
                             interval_legend_text   = interval_legend_text,
                             interval_bsv_text      = interval_bsv_text,
+                            plot_title             = "",
                             facet_formula          = "covname ~ paramname",
                             facet_switch           = "y",
                             facet_scales           = "free_y",
@@ -582,9 +615,12 @@ png("./coveffectsplot0.png",width =9 ,height = 6,units = "in",res=72)
 plotlists <- coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             ref_area = c(0.8, 1/0.8),
                             xlabel = "Fold Change Relative to Reference",
-                            ref_legend_text = "Reference (vertical line)\nClinically relevant limits\n(gray area)",
-                            area_legend_text = "Reference (vertical line)\nClinically relevant limits\n(gray area)",
+                            ref_legend_text = "Reference (vertical line)\nClinically
+                            relevant limits\n(gray area)",
+                            area_legend_text = "Reference (vertical line)\nClinically
+                            relevant limits\n(gray area)",
                             interval_legend_text = interval_legend_text,
+                            plot_title             = "",
                             interval_bsv_text = interval_bsv_text,
                             facet_formula = "covname~paramname",
                             facet_switch = "y",
@@ -647,10 +683,6 @@ egg::ggarrange(
 )
 dev.off()
 
-## ----echo=FALSE---------------------------------------------------------------
-# uncomment in interactive mode
-# run_interactiveforestplot(fpdata[paramname=="AUC"])
-
 ## ---- fig.width=7, fig.height=6,message=FALSE---------------------------------
 png("./coveffectsplot6.png",width =9.5 ,height = 6,units = "in",res=72)
 forest_plot(fpdata,
@@ -705,5 +737,38 @@ forest_plot(fpdata[paramname!="AUC"],
                             legend_space_x_mult = 0.01,
                             legend_position = "right",
                             return_list = FALSE)
+dev.off()
+
+## ---- fig.width=7, fig.height=6,message=FALSE---------------------------------
+png("./coveffectsplot_color.png",width =9.5 ,height = 6,units = "in",res=72)
+forest_plot(fpdata[paramname!="AUC" &
+                     covname!="BSV"&
+                     covname!="Reference",],
+                            ref_area = c(0.8, 1/0.8),
+                            x_range = c(0.35,1/0.35),
+                            xlabel = "Fold Change Relative to Reference",
+            ref_legend_text = "Reference\nClinically relevant limits\n(0.8-1.25)",
+            area_legend_text = "Reference\nClinically relevant limits\n(0.8-1.25)",
+                            facet_formula = "covname~.",
+                            paramname_shape = TRUE,
+                            paramname_color = TRUE,
+            combine_interval_shape_legend = TRUE,
+            legend_order =c("shape","pointinterval","ref", "area"),
+                            legend_shape_reverse = TRUE,
+                            bsv_col = scales::muted("red"),
+                            facet_switch = "y",
+                            facet_scales = "free_y",
+                            facet_space = "free",
+                            table_position = "none",
+                            base_size = 12,
+                            logxscale = TRUE,
+                            major_x_ticks = c(0.5,0.8,1/0.8,1/0.5),
+                            legend_space_x_mult = 0.01,
+                            legend_position = "right",
+                            return_list = TRUE)[[1]]+
+  scale_color_manual(labels = c(expression(C[last]),expression(C[max])),
+                       values = c(scales::muted("blue"),scales::muted("red")))+
+  scale_shape_discrete(labels = c(expression(C[last]),expression(C[max])))
+
 dev.off()
 

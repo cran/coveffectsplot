@@ -27,9 +27,9 @@
 #' \describe{
 #'   \item{Sex}{1=male; 2=female}
 #'   \item{Agemos}{Age in months}
-#'   \item{L}{skewness ditribution parameter}
-#'   \item{M}{location ditribution parameter}
-#'   \item{S}{scale ditribution parameter}
+#'   \item{L}{skewness distribution parameter}
+#'   \item{M}{location distribution parameter}
+#'   \item{S}{scale distribution parameter}
 #'   \item{P3}{Smoothed third percentile}
 #'   \item{P5}{Smoothed fifth percentile}
 #'   \item{P10}{Smoothed tenth percentile}
@@ -43,3 +43,17 @@
 #' @source CDC website \url{https://www.cdc.gov/growthcharts/data/zscore/wtage.csv}
 "wtage"
 
+#' Correlated Covariates data
+#'
+#' A example dataset used to illustrate multivariate joint covariate effects.
+#'
+#' @format A dataset with 2000 rows and 5 variables
+#' \describe{
+#'   \item{ID}{Subject ID}
+#'   \item{AGE}{Age in years}
+#'   \item{WT}{Weight in kg}
+#'   \item{Sex}{0=male; 1=female}
+#'   \item{ALB}{Albumin in g/dL}
+#' }
+#' @source simulated based on a real dataset
+"covdatasim"

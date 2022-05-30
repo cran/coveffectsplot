@@ -13,6 +13,7 @@ if (capabilities(("cairo"))) {
 library(coveffectsplot)
 library(ggplot2)
 library(ggridges)
+library(tidyr)
 suppressPackageStartupMessages( library(dplyr) )
 nuncertainty <- 10000
 nbsvsubjects <- 100000
@@ -31,16 +32,16 @@ names(df) <- c("POPCL","dWTdCL","dSexdCL")
 knitr::kable(head(round(df,2),5))
 
 ## ---- echo=FALSE, results='asis',fig.align = "center",fig.width = 6-----------
-dflong <- tidyr::gather(df)
+dflong <- gather(df)
 
-ggplot2::ggplot(dflong,ggplot2::aes(x=value,fill=key))+
-  ggplot2::geom_density(alpha=0.2)+
-    ggplot2::facet_wrap(~key,scales="free",ncol=1)+
-    ggplot2::labs(fill="",x="Uncertainty Distribution (RSE 15%) of the Parameters")+
-  ggplot2::theme(legend.position = "none",legend.background = 
-                   ggplot2::element_rect(fill="transparent"),
+ggplot(dflong,aes(x=value))+
+  geom_density(alpha=0.6, fill = "blue")+
+    facet_wrap(~key,scales="free",ncol=1)+
+    labs(fill="",x="Uncertainty Distribution (RSE 15%) of the Parameters")+
+  theme(legend.position = "none",legend.background = 
+                   element_rect(fill="transparent"),
                  axis.ticks.y = element_blank(),axis.text.y =element_blank())+
-  ggplot2::guides(fill=ggplot2::guide_legend(reverse = FALSE))
+  guides(fill=guide_legend(reverse = FALSE))
 set.seed(657687)
 dfcov<- data.frame(
 MASS::mvrnorm(n=nbsvsubjects,
@@ -48,13 +49,14 @@ MASS::mvrnorm(n=nbsvsubjects,
                 Sigma=matrix(c(20^2,0.01,0.01,20^2),2,2,byrow = TRUE) 
 ))
 names(dfcov)<- c("WTWOMAN","WTMAN")
-dfcovlong <- tidyr::gather(dfcov)
-ggplot2::ggplot(dfcovlong,ggplot2::aes(x=value,linetype=key))+
-  ggplot2::geom_density(alpha=0.2,fill="darkgreen",size=2)+
-  ggplot2::labs(linetype="",x="Weight (kg)")+
-  ggplot2::theme(legend.position = "right",legend.background = 
-                   ggplot2::element_rect(fill="transparent"),axis.ticks.y = element_blank(),axis.text.y =element_blank())+
-  ggplot2::guides(fill=ggplot2::guide_legend(reverse = FALSE))
+dfcovlong <- gather(dfcov)
+ggplot(dfcovlong,aes(x=value,linetype=key))+
+  geom_density(alpha=0.2,fill="darkgreen",size=2)+
+  labs(linetype="",x="Weight (kg)")+
+  theme(legend.position = "right",legend.background = 
+                   element_rect(fill="transparent"),axis.ticks.y = element_blank(),axis.text.y =element_blank())+
+  guides(fill=guide_legend(reverse = FALSE))+
+  theme_bw()
 
 
 dfcovlongquantile<- as.data.frame(
@@ -98,11 +100,11 @@ bsvplot<-   ggplot(CLBSVdistribution, aes(
     axis.text.y     = element_blank(),
     axis.ticks.y    = element_blank(),
     axis.title.y    = element_blank(),
-    axis.text.x=ggplot2::element_text(size=12),
-    axis.title.x=ggplot2::element_text(size=14)) +
+    axis.text.x=element_text(size=12),
+    axis.title.x=element_text(size=14)) +
   scale_x_continuous(breaks=c(0.61,0.82,1,1.22,1.63))+
   coord_cartesian(expand=FALSE,xlim = c(0.49,2.01))+
-  ggplot2::labs(x="Standardized Individual Clearances with BSV",
+  labs(x="Standardized Individual Clearances with BSV",
                 title="Illustrating 30.7% BSV")
 
 bsvplot
@@ -112,39 +114,53 @@ knitr::kable(dfbsvtable[1,,drop=FALSE],row.names=FALSE)
 #bayestestR::hdi(CLBSVdistribution$CLBSV,ci = c(.50, .90))
 #0.55, 0.74, 1 , 1.12, 1.53
 
-## ----include=FALSE------------------------------------------------------------
-# bsvplot
-# ggsave("Figure_2.png", device="png",
-#        type="cairo-png",width= 7, height = 5,dpi=300)
-
 ## ----fig.width= 7-------------------------------------------------------------
 dfeffects <- df
-dfeffects$REF <- dfeffects$POPCL/ median(dfeffects$POPCL)
-dfeffects$SEX_FEMALE_WT_50 <- dfeffects$REF*(50/70)^dfeffects$dWTdCL
-dfeffects$SEX_FEMALE_WT_90 <-  dfeffects$REF*(90/70)^dfeffects$dWTdCL
+dfeffects$REFrange <- dfeffects$POPCL/ median(dfeffects$POPCL)
+
+ggplot(dfeffects)+
+  geom_density(aes(x=REFrange,y=..scaled..,col="a.Uncertainty\nRSE=15%"))+
+  geom_density(data=dfcovlong,
+                        aes(x=(value/70)^0.75 ,
+                                y=..scaled..,col="b.Weight\nMean=70 kg, sd=20 kg"))+
+  geom_density(data=CLBSVdistribution ,aes(x=CLBSV,y=..scaled..,
+  col="c.Between subject variability\nCV=30.1%"))+
+  theme_bw(base_size = 16)+
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  scale_x_continuous(breaks=c(0.25,0.5,0.8,1,1.25,1.5,2,3))+
+  coord_cartesian(xlim=c(0.25,2))+
+  labs(color="",x="Effects Standardized Relative\nto the Typical Value",y= "Scaled Density")+
+  scale_color_manual(values=c("blue","green","red"))
+
+
+## ----fig.width= 7-------------------------------------------------------------
+dfeffects$REF <- 1
+dfeffects$SEX_FEMALE_WT_50 <- (50/70)^dfeffects$dWTdCL
+dfeffects$SEX_FEMALE_WT_90 <-  (90/70)^dfeffects$dWTdCL
 dfeffects$SEX_Male_WT_70 <- dfeffects$dSexdCL
-dfeffects$SEX_Male_WT_90 <- dfeffects$dSexdCL*dfeffects$REF*(90/70)^dfeffects$dWTdCL
-dfeffects$BSV<-  sample(CLBSVdistribution$CLBSV, nuncertainty)
+dfeffects$SEX_Male_WT_90 <- dfeffects$dSexdCL*(90/70)^dfeffects$dWTdCL
+dfeffects$BSV_REF<-  sample(CLBSVdistribution$CLBSV, nuncertainty)
 
 dfeffects<- dfeffects[,c("SEX_FEMALE_WT_50",
                          "SEX_FEMALE_WT_90",
                          "SEX_Male_WT_70",
                          "SEX_Male_WT_90",
                          "REF",
-                         "BSV")]
+                         "BSV_REF")]
 
 
-dflong <- tidyr::gather(dfeffects)
-ggplot2::ggplot(dflong,ggplot2::aes(x=value,y=key,fill=factor(..quantile..)))+
+dflong <- tidyr::gather(dfeffects,key,value,-REF)
+ggplot(dflong,aes(x=value,y=key,fill=factor(..quantile..)))+
 ggridges::stat_density_ridges(
   geom = "density_ridges_gradient", calc_ecdf = TRUE,
   quantile_lines = TRUE, rel_min_height = 0.01,
   quantiles = c(0.05,0.5, 0.95)) +
-  ggplot2::scale_fill_manual(
+  scale_fill_manual(
     name = "Probability", values = c("#FF0000A0", "white","white", "#0000FFA0"),
     labels = c("(0, 0.05]", "(0.05, 0.5]","(0.5, 0.95]", "(0.95, 1]")
   )+
-      ggplot2::annotate(
+      annotate(
         "rect",
         xmin = 0.8,
         xmax = 1.25,
@@ -152,33 +168,17 @@ ggridges::stat_density_ridges(
         ymax = Inf,
         fill = "gray",alpha=0.4
       )+
-  ggplot2::geom_vline(
-      ggplot2::aes(xintercept = 1),
+  geom_vline(
+      aes(xintercept = 1),
       size = 1
     )+
-  ggplot2::theme_bw()+
-  ggplot2::labs(x="Effects Relative to parameter reference value",y="")
-
-## ----fig.width= 7-------------------------------------------------------------
-ggplot2::ggplot(dfeffects)+
-  ggplot2::geom_density(ggplot2::aes(x=REF,y=..scaled..,col="a.Uncertainty\nRSE=15%"))+
-  ggplot2::geom_density(data=dfcovlong,
-                        ggplot2::aes(x=(value/70)^0.75 ,
-                                y=..scaled..,col="b.Weight\nMean=70 kg, sd=20 kg"))+
-  ggplot2::geom_density(data=CLBSVdistribution ,ggplot2::aes(x=CLBSV,y=..scaled..,
-                                                             col="c.Between subject variability\nCV=30%"))+
-  ggplot2::theme_bw(base_size = 16)+
-  ggplot2::theme(axis.text.y = ggplot2::element_blank(),
-        axis.ticks.y = ggplot2::element_blank())+
-  ggplot2::scale_x_continuous(breaks=c(0.25,0.5,0.8,1,1.25,1.5,2,3))+
-  ggplot2::coord_cartesian(xlim=c(0.25,2))+
-  ggplot2::labs(color="",x="Effects Standardized Relative to the Typical Value",y= "Scaled Density")+
-  ggplot2::scale_color_manual(values=c("blue","green","red"))
-
+  theme_bw()+
+  labs(x="Effects Relative to parameter reference value",y="")
 
 ## -----------------------------------------------------------------------------
 dfeffects$SEX_Male_WT_90<- NULL
-dfeffectslong<- tidyr::gather(dfeffects)
+dfeffects$REF <- 1
+dfeffectslong<- gather(dfeffects)
 dfeffectslong<- dplyr::group_by(dfeffectslong,key)
 dfeffectslongsummaries<- dplyr::summarise(dfeffectslong,mid=quantile(value,0.5),
                                    lower=quantile(value,0.05),
@@ -214,37 +214,36 @@ plotdata$covname <- as.factor(plotdata$covname)
 plotdata$covname <- reorder(plotdata$covname , c(3,4,4,2,1,1))
 
 plotdata$label <- reorder(as.factor(plotdata$label) , c(1,3,2,4,5,6))
-  ggplot2::ggplot(data = plotdata, ggplot2::aes_string(
+  ggplot(data = plotdata[plotdata$covname!="REF",], aes_string(
       y = "label",
       x = "mid",
       xmin = "lower",
       xmax = "upper"
     )) +
-    ggstance::geom_pointrangeh(
-      position = ggstance::position_dodgev(height = 0.75),
-      ggplot2::aes(color = "90 %CI\nCovariate Effects"),
+      geom_pointrange(
+      aes(color = "90 %CI\nCovariate Effects"),
       size = 1,
       alpha = 1
     )+
-  ggplot2::annotate("rect", xmin = min(0.8), 
+  annotate("rect", xmin = min(0.8), 
       xmax = max(1.25), ymin = -Inf, ymax = Inf, fill = "gray",alpha=0.1)+
-  ggplot2::geom_vline(ggplot2::aes(xintercept = 1,linetype="Reference"))+ 
-  ggplot2::facet_grid(covname~.,scales="free_y",switch="y")+
-  ggplot2::labs(y="",x="Effects Relative to Reference Value",
+  geom_vline(aes(xintercept = 1,linetype="Reference"))+ 
+  facet_grid(covname~.,scales="free_y",switch="y")+
+  labs(y="",x="Effects Relative to Reference Value",
                 colour="",linetype="")+
-  ggplot2::theme_bw()+
-    ggplot2::scale_color_manual(values=c("blue"))
+  theme_bw()+
+    scale_color_manual(values=c("blue"))
 
 ## ----dpi = 72-----------------------------------------------------------------
 png("./coveffectsplot.png",width =9 ,height = 6,units = "in",res=72)
- coveffectsplot::forest_plot(plotdata,
+ coveffectsplot::forest_plot(plotdata[plotdata$covname!="REF",],
             ref_area = c(0.8, 1/0.8),
             x_facet_text_size = 13,
             y_facet_text_size = 13,
             interval_legend_text = "Median (points)\n90% CI (horizontal lines)",
             ref_legend_text = "Reference (vertical line)\n+/- 20% ratios (gray area)",
             area_legend_text = "Reference (vertical line)\n+/- 20% ratios (gray area)",
-            xlabel = "Fold Change Relative to Parameter",
+            xlabel = "Fold Change Relative to a 70kg Woman",
             facet_formula = "covname~.",
             facet_switch = "both",
             facet_scales = "free",
@@ -345,10 +344,10 @@ png("./coveffectsplot2.png",width =9 ,height = 6,units = "in",res=72)
             return_list = TRUE)
 egg::ggarrange(
       plotlist[[1]]+ 
-   ggplot2::labs(x= expression(paste("Changes Relative to ",
+   labs(x= expression(paste("Changes Relative to ",
                                      CL["subscript"]^alpha["beta"], " Reference"),
                                sep=""))+
-      ggplot2::theme(strip.text.y =  ggplot2::element_text(colour="blue")),
+      theme(strip.text.y =  element_text(colour="blue")),
        plotlist[[2]] ,
       nrow = 1,
       widths = c(4, 1)
