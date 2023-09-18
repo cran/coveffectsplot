@@ -149,20 +149,32 @@ outputsim$SEX <- factor(outputsim$SEX, labels="Female")
 set.seed(678549)
 plotdata <- outputsim[ID %in% sample(unique(ID), 500)]
 
+# New facet label names for dose variable
+albumin.labs <- c("albumin: 45 ng/mL")
+names(albumin.labs) <- c("45")
+wt.labs <- c("weight: 85 kg")
+names(wt.labs) <- c("85")
+
+
 p1 <- ggplot(plotdata, aes(time, CP, group = ID)) +
   geom_line(alpha = 0.2, size = 0.1) +
-  facet_grid(~ WT + SEX + ALB, labeller = label_both) +
+  facet_grid(~ WT + ALB + SEX,
+             labeller =  labeller(ALB = albumin.labs,
+                                  WT = wt.labs)) +
   labs(y = "Plasma Concentrations", x = "Time (h)")
 
 p2 <- ggplot(plotdata, aes(time, CP, group = ID)) +
   geom_line(alpha = 0.2, size = 0.1) +
-  facet_grid(~ WT + SEX + ALB, labeller = label_both) +
+  facet_grid(~ WT + ALB + SEX,
+             labeller =  labeller(ALB = albumin.labs,
+                                  WT = wt.labs)) +
   scale_y_log10() +
-  labs(y = expression(Log[10]~Plasma~Concentrations), x = "Time (h)")
+  labs(y = "Plasma~Concentrations\n(logarithmic scale)", x = "Time (h)")
 
 egg::ggarrange(p1, p2, ncol = 2)
 
-## ----computenca , fig.width=7 , message=FALSE---------------------------------
+
+## ----computenca, fig.width=7, message=FALSE-----------------------------------
 derive.exposure <- function(time, CP) {
   n <- length(time)
   x <- c(
@@ -229,7 +241,7 @@ p4 <- ggplot(refbsv, aes(
   scale_x_log10() +
   coord_cartesian(expand=FALSE, xlim = c(0.3,3))
 
-p3+p4
+p3 + p4
 
 ## ----computebsvpk , fig.width=7 , message=FALSE-------------------------------
 bsvranges <- refbsv[,list(
@@ -240,7 +252,7 @@ bsvranges <- refbsv[,list(
     P95 = quantile(stdparamvalue, 0.95)), by = paramname]
 bsvranges
 
-## ----covcomb , fig.width=7----------------------------------------------------
+## ----covcomb, fig.width=7-----------------------------------------------------
 reference.values <- data.frame(WT = 85, ALB = 45, SEX = 0)   
 covdatasim$SEX<- ifelse(covdatasim$SEX==0,1,0)
 covdatasim$SEX <- as.factor(covdatasim$SEX )
@@ -268,7 +280,7 @@ ggpairsplot <- GGally::ggpairs(covdatasimpairs,
                        )
 )
 covdatasim$SEX <- as.numeric(covdatasim$SEX)-1
-ggpairsplot +theme_bw(base_size = 12)+
+ggpairsplot + theme_bw(base_size = 12) +
   theme(axis.text = element_text(size=9))
 
 
@@ -297,16 +309,21 @@ stat_sum_df_line <- function(fun, geom="line", ...) {
   stat_summary(fun.data = fun, geom = geom, ...)
 }
 
+fwt <- function(x, xcat, which, what, from, to, ...) {
+  what <- sub("WT", "\nWeight", what)
+  sprintf("%s %s [%s to %s[",
+          which, what, signif_pad(from, 3, FALSE), signif_pad(to, 3, FALSE))
+}
 
 f <- function(x, xcat, which, what, from, to, ...) {
-  what <- sub("ALB", "\nALB", what)
+  what <- sub("ALB", "\nAlbumin", what)
   sprintf("%s %s [%s to %s[",
           which, what, signif_pad(from, 3, FALSE), signif_pad(to, 3, FALSE))
 }
 
 plotlines<- ggplot(outcovcomb, aes(time,CP,col=SEX ) )+
   geom_line(aes(group=ID),alpha=0.1,size=0.1)+
-  facet_grid(table1::eqcut(ALB,2,f) ~ table1::eqcut(WT,2),labeller = label_value)+
+  facet_grid(table1::eqcut(ALB,2,f) ~ table1::eqcut(WT,2,fwt),labeller = label_value)+
   labs(colour="Sex",caption ="Simulation without Uncertainty\nFull
        Covariate Distribution\nwithout BSV/Uncertainty",
        x = "Time (h)", y="Plasma Concentrations")+
@@ -314,15 +331,15 @@ plotlines<- ggplot(outcovcomb, aes(time,CP,col=SEX ) )+
 
 plotranges<- ggplot(outcovcomb, aes(time,CP,col=SEX,fill=SEX ) )+
   stat_sum_df(fun="median_hilow",alpha=0.2,
-              mapping = aes(group=interaction(table1::eqcut(WT,2),
+              mapping = aes(group=interaction(table1::eqcut(WT,2,fwt),
                                               SEX,
                                               table1::eqcut(ALB,2,f))
               ), colour = "transparent")+
   stat_sum_df_line(fun="median_hilow",size =2,
                    mapping = aes(linetype = SEX,
-                                 group=interaction(table1::eqcut(WT,2),
+                                 group=interaction(table1::eqcut(WT,2,fwt),
                                                    SEX,table1::eqcut(ALB,2,f))))+
-  facet_grid(table1::eqcut(ALB,2,f) ~ table1::eqcut(WT,2),
+  facet_grid(table1::eqcut(ALB,2,f) ~ table1::eqcut(WT,2,fwt),
              labeller = label_value)+
   labs(linetype="Sex",colour="Sex",fill="Sex",
   caption ="Simulation with Full Covariate Distribution with BSV
@@ -340,7 +357,7 @@ as.data.frame(t(theta))
 
 varcov <- cor2cov(
   matrix(0.2, nrow=length(theta), ncol=length(theta)),
-  sd=theta*0.15)
+  sd=theta*0.25)
 rownames(varcov) <- colnames(varcov) <- names(theta)
 as.data.frame(varcov)
 
@@ -357,11 +374,15 @@ data.dose <- as.data.frame(ev1)
 
 iter_sims <- NULL
 for(i in 1:nsim) {
+  # you might want to resample your covariate database here
+  # e.g. subsample from a large pool of patient
+  # include uncertainty on your covariate distribution
+  
   data.all  <- data.table(idata, data.dose, sim_parameters[i])
   out <- modcovsim %>%
     data_set(data.all) %>%
     #zero_re() %>%
-    #omat(RxODE::cvPost(2000, matrix(c(0.09,0.01,0.01,0.09), 2, 2),
+    #omat(rxode2::cvPost(2000, matrix(c(0.09,0.01,0.01,0.09), 2, 2),
     #type = "invWishart")) %>%  # unc on bsv uncomment and increase nsim for CPT:PSP paper
     mrgsim(start=0, end=24, delta=0.25) %>%
     as.data.frame %>%
@@ -370,12 +391,12 @@ for(i in 1:nsim) {
   iter_sims <- rbind(iter_sims, out)
 }
 f <- function(x, xcat, which, what, from, to, ...) {
-  what <- sub("ALB", "\nALB", what)
+  what <- sub("ALB", "\nAlbumin", what)
   sprintf("%s %s [%s to %s[",
           which, what, signif_pad(from, 3, FALSE), signif_pad(to, 3, FALSE))
 }
 fwt <- function(x, xcat, which, what, from, to, ...) {
-  what <- sub("WT", "\nWT", what)
+  what <- sub("WT", "\nWeight", what)
   sprintf("%s %s [%s to %s[",
           which, what, signif_pad(from, 3, FALSE), signif_pad(to, 3, FALSE))
 }

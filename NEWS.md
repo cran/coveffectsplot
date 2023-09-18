@@ -1,7 +1,25 @@
+# coveffectsplot 1.0.4
+* updated vignettes and examples
+* added citation and start up message
+* added `major_x_labels` argument for custom x labels
+* added `interval_linewidth` argument to control interval linewidth
+* added and exported `expand_modelframe` function
+* added the possibility to select the shapes manually via `interval_shape` and `bsv_shape`
+* added capability for user to reverse color legend separately via `legend_color_reverse`
+* added capability for user to specify text for legend titles via `interval_legend_title` and `shape_legend_title` as well as to control legend title text size via `legend_title_size`
+* added capability for user to specify facet text color via `x_facet_text_col` and `y_facet_text_col` for improved theming support
+* added possibility to add different ref line(s)/area(s) by parameter via
+ `ref_value_by_panel` and `ref_value_by_panel_data` function arguments (not in the shiny, app)
+
+# coveffectsplot 1.0.3
+* fixed a bug when ref_value when not equal 1 affecting y axis limits
+* fixed a bug when the guides for color and shape were not merged
+* updated the UI to be able to specify user-defined color for parameters
+
 # coveffectsplot 1.0.2
 * vignettes updated to reflect latest addition for the tutorial CPT:PSP paper
-* Added a function arguments `paramname_color` and `combine_interval_shape_legend` to enable color by paramname
-* Added a function arguments `combine_interval_shape_legend` to enable merging of color and pointinterval legends
+* Added function arguments `paramname_color` and `combine_interval_shape_legend` to enable color by paramname
+* Added function arguments `combine_interval_shape_legend` to enable merging of color and pointinterval legends
 * Added `covdatasim` as a dataset
 
 # coveffectsplot 1.0.1

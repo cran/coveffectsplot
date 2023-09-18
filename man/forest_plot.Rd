@@ -17,9 +17,12 @@ forest_plot(
   y_facet_text_vjust = 0.5,
   x_facet_text_hjust = 0.5,
   y_facet_text_hjust = 0.5,
+  x_facet_text_col = "black",
+  y_facet_text_col = "black",
   xy_facet_text_bold = TRUE,
   x_label_text_size = 16,
   y_label_text_size = 16,
+  legend_title_size = 12,
   break_ylabel = FALSE,
   y_label_text_width = 25,
   table_text_size = 7,
@@ -30,28 +33,36 @@ forest_plot(
   ref_legend_text = "",
   area_legend_text = "",
   interval_legend_text = "",
+  interval_legend_title = "",
+  shape_legend_title = "",
   legend_order = c("pointinterval", "ref", "area", "shape"),
   combine_area_ref_legend = TRUE,
   combine_interval_shape_legend = FALSE,
   legend_position = "top",
   show_ref_area = TRUE,
   ref_area = c(0.8, 1.25),
+  ref_area_col = "#BEBEBE50",
   show_ref_value = TRUE,
   ref_value = 1,
-  ref_area_col = "#BEBEBE50",
   ref_value_col = "black",
   ref_value_size = 1,
   ref_value_linetype = "dashed",
+  ref_value_by_panel = FALSE,
+  ref_value_by_panel_data = NULL,
   interval_col = "blue",
   interval_size = 1,
   interval_fatten = 4,
+  interval_linewidth = 1,
+  interval_shape = "circle small",
   bsv_col = "red",
+  bsv_shape = "circle small",
   bsv_text_id = c("BSV", "bsv", "IIV", "Bsv"),
   interval_bsv_text = "",
   strip_col = "#E5E5E5",
   paramname_shape = FALSE,
   paramname_color = FALSE,
   legend_shape_reverse = FALSE,
+  legend_color_reverse = FALSE,
   facet_switch = c("both", "y", "x", "none"),
   facet_scales = c("fixed", "free_y", "free_x", "free"),
   facet_space = c("fixed", "free_x", "free_y", "free"),
@@ -62,6 +73,7 @@ forest_plot(
   strip_outline = TRUE,
   facet_spacing = 5.5,
   major_x_ticks = NULL,
+  major_x_labels = NULL,
   minor_x_ticks = NULL,
   x_range = NULL,
   logxscale = FALSE,
@@ -112,11 +124,17 @@ forest_plot(
 
 \item{y_facet_text_hjust}{Facet text horizontal justification.}
 
+\item{x_facet_text_col}{Facet text color default to black.}
+
+\item{y_facet_text_col}{Facet text color default to black.}
+
 \item{xy_facet_text_bold}{Bold Facet text. Logical TRUE FALSE.}
 
 \item{x_label_text_size}{X axis labels size.}
 
 \item{y_label_text_size}{Y axis labels size.}
+
+\item{legend_title_size}{Legend title size if present.}
 
 \item{break_ylabel}{Split Y axis labels into multiple lines. Logical FALSE TRUE.}
 
@@ -136,7 +154,11 @@ forest_plot(
 
 \item{area_legend_text}{Area legend text.}
 
-\item{interval_legend_text}{Pointinterval Legend text.}
+\item{interval_legend_text}{Pointinterval legend text.}
+
+\item{interval_legend_title}{Pointinterval legend title defaults to empty.}
+
+\item{shape_legend_title}{Shape legend title defaults to empty.}
 
 \item{legend_order}{Legend order. A four-element vector with the following
 items ordered in your desired order: "pointinterval", "ref", "area", "shape".
@@ -145,7 +167,7 @@ if an item is absent the legend will be omitted.}
 \item{combine_area_ref_legend}{Combine reference and area legends if they
 share the same text?}
 
-\item{combine_interval_shape_legend}{Combine interval and shape legends when paramname_color=TRUE ?}
+\item{combine_interval_shape_legend}{Combine interval and shape legends?}
 
 \item{legend_position}{where to put the legend: "top", "bottom","right","none"}
 
@@ -153,11 +175,11 @@ share the same text?}
 
 \item{ref_area}{Reference area. Two-element numeric vector multiplying the ref_value.}
 
+\item{ref_area_col}{Reference area background color.}
+
 \item{show_ref_value}{Show reference line?}
 
 \item{ref_value}{X intercept of reference line.}
-
-\item{ref_area_col}{Reference area background color.}
 
 \item{ref_value_col}{Reference line color.}
 
@@ -165,13 +187,23 @@ share the same text?}
 
 \item{ref_value_linetype}{Reference line linetype.}
 
-\item{interval_col}{Point range color. One  or Multiple values.}
+\item{ref_value_by_panel}{The ref_value vary by panel TRUE or FALSE.}
+
+\item{ref_value_by_panel_data}{if ref_value_by_panel is TRUE, data.frame to use for Reference (lines).}
+
+\item{interval_col}{Point range color. One or Multiple values.}
 
 \item{interval_size}{Point range size. Default to 1}
 
 \item{interval_fatten}{Point range fatten. Default to 4}
 
+\item{interval_linewidth}{Point range line width. Default to 1}
+
+\item{interval_shape}{Shape used for the Point Range. Default to "circle small".}
+
 \item{bsv_col}{BSV pointinterval color. One value.}
+
+\item{bsv_shape}{Shape used for the BSV Point Range. Default to "circle small".}
 
 \item{bsv_text_id}{Text string(s) to identify BSV. Default to c("BSV","bsv","IIV","Bsv")}
 
@@ -179,11 +211,13 @@ share the same text?}
 
 \item{strip_col}{Strip background color.}
 
-\item{paramname_shape}{Map symbol to parameter(s)?}
+\item{paramname_shape}{Map symbol to parameter(s) name? TRUE or FALSE.}
 
-\item{paramname_color}{Map symbol to parameter(s)?}
+\item{paramname_color}{Map color to parameter(s) name? TRUE or FALSE.}
 
 \item{legend_shape_reverse}{TRUE or FALSE.}
+
+\item{legend_color_reverse}{TRUE or FALSE.}
 
 \item{facet_switch}{Facet switch to near axis. Possible values: "both", "y",
 "x", "none".}
@@ -209,6 +243,8 @@ any other valid `facet_grid` labeller can be specified.}
 \item{facet_spacing}{Control the space between facets in points.}
 
 \item{major_x_ticks}{X axis major ticks. Numeric vector.}
+
+\item{major_x_labels}{X axis labels. Character vector should be same length as major_x_ticks.}
 
 \item{minor_x_ticks}{X axis minor ticks. Numeric vector.}
 
@@ -295,6 +331,7 @@ forest_plot(plotdata,
             facet_space = "free_y",
             show_table_facet_strip = "none",
             table_position = "right",
+            plot_title = "",
             plot_table_ratio = 4)
 
 # Example 2
@@ -327,6 +364,7 @@ forest_plot(plotdata,
             show_table_facet_strip = "both",
             show_table_yaxis_tick_label = TRUE,
             table_position = "below",
+            plot_title = "",
             plot_table_ratio = 1)
 \dontrun{
 
@@ -341,8 +379,8 @@ plotdata <- plotdata \%>\%
 plotdata$covname <- reorder(plotdata$covname,plotdata$upper,FUN =max)
 plotdata$label <- reorder(plotdata$label,plotdata$scen)
 
-plotdata$compound <- c(rep("1-OH",18),rep("BZD",18))
-plotdata$paramname <- c(rep("AUC",9),rep("CMAX",9),rep("AUC",9),rep("CMAX",9))
+plotdata$compound <- c(rep("1-OH",30),rep("BZD",30))
+plotdata$paramname <- c(rep("AUC",15),rep("CMAX",15),rep("AUC",15),rep("CMAX",15))
 
 forest_plot(plotdata,
             ref_area = c(0.8, 1.2),
@@ -355,14 +393,56 @@ forest_plot(plotdata,
             facet_switch = "both",
             facet_scales = "free",
             facet_space = "fixed",
-            paramname_shape = TRUE,            paramname_color =  FALSE,
+            paramname_shape = TRUE,
+            legend_shape_reverse = TRUE,
+            interval_shape = c("square","triangle"),
+            paramname_color =  FALSE,
             combine_interval_shape_legend = FALSE,
             table_position = "right", plot_title = "",
             ref_area_col = rgb( col2rgb("gray50")[1], col2rgb("gray50")[2],col2rgb("gray50")[3],
                                 max = 255, alpha = 0.1*255 ) ,
             interval_col = c("steelblue"),
             strip_col = "lightblue",
-            plot_table_ratio = 1)
+            plot_table_ratio = 1.5)
+            
+# Example 3b
+        
+plotdata$paramname <- c(rep("1-OH",30),rep("BZD",30))
+plotdata$paramname2 <- c(rep("AUC",15),rep("CMAX",15),rep("AUC",15),rep("CMAX",15))
+forest_plot(plotdata,
+           show_ref_area = TRUE,
+           x_facet_text_size = 13,
+           y_facet_text_size = 13,
+           ref_legend_text = "Reference (vertical line)",
+           area_legend_text = "Reference (vertical line)",
+           xlabel = "Fold Change Relative to Parameter",
+           facet_formula = covname~paramname2,
+           facet_switch = "both",
+           facet_scales = "free",
+           facet_space = "free",
+           legend_order = c("shape","pointinterval","ref"),
+           paramname_shape = TRUE,
+           interval_shape = c("diamond","diamond filled",
+                              "diamond","diamond filled"),
+           paramname_color =  TRUE,
+           combine_interval_shape_legend = TRUE,
+           legend_shape_reverse = TRUE,
+           legend_color_reverse = TRUE,
+           interval_legend_title="Median (points)\n95\% CI (horizontal lines)",
+           table_position = "right", plot_title = "",
+           ref_area_col = "gray85" ,
+           interval_col = c("#ee3124", "#fdbb2f"),
+           strip_col = "#475c6b",
+           y_facet_text_col = "white",x_facet_text_col = "white",
+           major_x_labels         = c("1/2", "0.8","1", "1.25", "2"),
+           logxscale = TRUE, major_x_ticks =c(0.5,0.8,1,1.25,2),
+           table_text_size = 5,
+           plot_table_ratio = 1.5,
+           ref_value_by_panel = TRUE,
+           ref_value_by_panel_data = as.data.frame(
+           plotdata \%>\% 
+           distinct(paramname2,covname) \%>\% 
+           dplyr::mutate(xintercept=ifelse(paramname2=="CMAX",1,1.2))))
 
 # Example 3
 
@@ -386,7 +466,7 @@ forest_plot(plotdata,
 # Example 4
 plotdata <- get_sample_data("dataforest.csv")
 plotdata <- plotdata \%>\%
-  mutate(midlabel = format(round(mid,2), nsmall = 2),
+  dplyr::mutate(midlabel = format(round(mid,2), nsmall = 2),
          lowerlabel = format(round(lower,2), nsmall = 2),
          upperlabel = format(round(upper,2), nsmall = 2),
          LABEL = paste0(midlabel, " [", lowerlabel, "-", upperlabel, "]"))

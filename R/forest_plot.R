@@ -1,3 +1,6 @@
+#' @importFrom colourpicker colourInput
+# ' @importFrom ggplot2 translate_shape_string not yet
+
 # Same as base R `which()` function, but return 0 instead of an empty vector
 # if there are no TRUE values in the array
 which0 <- function(x) {
@@ -6,6 +9,23 @@ which0 <- function(x) {
     result <- 0
   }
   result
+}
+
+translate_shape_string <- function (shape_string) 
+{
+  if (nchar(shape_string[1]) <= 1) {
+    return(shape_string)
+  }
+  pch_table <- c(`square open` = 0, `circle open` = 1, `triangle open` = 2, 
+                 plus = 3, cross = 4, `diamond open` = 5, `triangle down open` = 6, 
+                 `square cross` = 7, asterisk = 8, `diamond plus` = 9, 
+                 `circle plus` = 10, star = 11, `square plus` = 12, `circle cross` = 13, 
+                 `square triangle` = 14, `triangle square` = 14, square = 15, 
+                 `circle small` = 16, triangle = 17, diamond = 18, circle = 19, 
+                 bullet = 20, `circle filled` = 21, `square filled` = 22, 
+                 `diamond filled` = 23, `triangle filled` = 24, `triangle down filled` = 25)
+  shape_match <- charmatch(shape_string, names(pch_table))
+  unname(pch_table[shape_match])
 }
 
 label_wrap <- function(width) {
@@ -36,9 +56,12 @@ label_wrap <- function(width) {
 #' @param y_facet_text_vjust Facet text vertical justification.
 #' @param x_facet_text_hjust Facet text horizontal justification.
 #' @param y_facet_text_hjust Facet text horizontal justification.
+#' @param x_facet_text_col Facet text color default to black.
+#' @param y_facet_text_col Facet text color default to black.
 #' @param xy_facet_text_bold Bold Facet text. Logical TRUE FALSE.
 #' @param x_label_text_size X axis labels size.
 #' @param y_label_text_size Y axis labels size.
+#' @param legend_title_size Legend title size if present.
 #' @param break_ylabel Split Y axis labels into multiple lines. Logical FALSE TRUE.
 #' @param y_label_text_width Number of characters to break Y axis labels.
 #' @param table_text_size Table text size.
@@ -48,32 +71,40 @@ label_wrap <- function(width) {
 #' @param table_title_size table title size.
 #' @param ref_legend_text Reference legend text.
 #' @param area_legend_text Area legend text.
-#' @param interval_legend_text Pointinterval Legend text.
+#' @param interval_legend_text Pointinterval legend text.
+#' @param interval_legend_title Pointinterval legend title defaults to empty.
+#' @param shape_legend_title Shape legend title defaults to empty.
 #' @param legend_order Legend order. A four-element vector with the following
 #' items ordered in your desired order: "pointinterval", "ref", "area", "shape".
 #' if an item is absent the legend will be omitted.
 #' @param combine_area_ref_legend Combine reference and area legends if they
 #' share the same text?
-#' @param combine_interval_shape_legend Combine interval and shape legends when paramname_color=TRUE ?
+#' @param combine_interval_shape_legend Combine interval and shape legends?
 #' @param legend_position where to put the legend: "top", "bottom","right","none"
 #' @param show_ref_area Show reference window?
 #' @param ref_area Reference area. Two-element numeric vector multiplying the ref_value.
+#' @param ref_area_col Reference area background color.
 #' @param show_ref_value Show reference line?
 #' @param ref_value X intercept of reference line.
-#' @param ref_area_col Reference area background color.
 #' @param ref_value_col Reference line color.
 #' @param ref_value_size Reference line size.
 #' @param ref_value_linetype Reference line linetype.
-#' @param interval_col Point range color. One  or Multiple values.
+#' @param ref_value_by_panel The ref_value vary by panel TRUE or FALSE. 
+#' @param ref_value_by_panel_data if ref_value_by_panel is TRUE, data.frame to use for Reference (lines).
+#' @param interval_col Point range color. One or Multiple values.
 #' @param interval_size Point range size. Default to 1
 #' @param interval_fatten Point range fatten. Default to 4
+#' @param interval_linewidth Point range line width. Default to 1
+#' @param interval_shape Shape used for the Point Range. Default to "circle small".
 #' @param bsv_col  BSV pointinterval color. One value.
+#' @param bsv_shape Shape used for the BSV Point Range. Default to "circle small".
 #' @param bsv_text_id Text string(s) to identify BSV. Default to c("BSV","bsv","IIV","Bsv")
 #' @param interval_bsv_text BSV legend text.
 #' @param strip_col Strip background color.
-#' @param paramname_shape Map symbol to parameter(s)?
-#' @param paramname_color Map symbol to parameter(s)?
+#' @param paramname_shape Map symbol to parameter(s) name? TRUE or FALSE.
+#' @param paramname_color Map color to parameter(s) name? TRUE or FALSE.
 #' @param legend_shape_reverse TRUE or FALSE. 
+#' @param legend_color_reverse TRUE or FALSE.  
 #' @param facet_switch Facet switch to near axis. Possible values: "both", "y",
 #' "x", "none".
 #' @param facet_scales Facet scales. Possible values: "free_y", "fixed",
@@ -89,6 +120,7 @@ label_wrap <- function(width) {
 #' @param strip_outline Draw rectangle around the Strip. Logical TRUE FALSE.
 #' @param facet_spacing Control the space between facets in points.
 #' @param major_x_ticks X axis major ticks. Numeric vector.
+#' @param major_x_labels X axis labels. Character vector should be same length as major_x_ticks.
 #' @param minor_x_ticks X axis minor ticks. Numeric vector.
 #' @param x_range Range of X values. Two-element numeric vector.
 #' @param logxscale  X axis log scale. Logical TRUE FALSE.
@@ -150,6 +182,7 @@ label_wrap <- function(width) {
 #'             facet_space = "free_y",
 #'             show_table_facet_strip = "none",
 #'             table_position = "right",
+#'             plot_title = "",
 #'             plot_table_ratio = 4)
 #'
 #' # Example 2
@@ -182,6 +215,7 @@ label_wrap <- function(width) {
 #'             show_table_facet_strip = "both",
 #'             show_table_yaxis_tick_label = TRUE,
 #'             table_position = "below",
+#'             plot_title = "",
 #'             plot_table_ratio = 1)
 #'\dontrun{
 #'
@@ -196,8 +230,8 @@ label_wrap <- function(width) {
 #' plotdata$covname <- reorder(plotdata$covname,plotdata$upper,FUN =max)
 #' plotdata$label <- reorder(plotdata$label,plotdata$scen)
 #' 
-#' plotdata$compound <- c(rep("1-OH",18),rep("BZD",18))
-#' plotdata$paramname <- c(rep("AUC",9),rep("CMAX",9),rep("AUC",9),rep("CMAX",9))
+#' plotdata$compound <- c(rep("1-OH",30),rep("BZD",30))
+#' plotdata$paramname <- c(rep("AUC",15),rep("CMAX",15),rep("AUC",15),rep("CMAX",15))
 #' 
 #' forest_plot(plotdata,
 #'             ref_area = c(0.8, 1.2),
@@ -210,14 +244,56 @@ label_wrap <- function(width) {
 #'             facet_switch = "both",
 #'             facet_scales = "free",
 #'             facet_space = "fixed",
-#'             paramname_shape = TRUE,            paramname_color =  FALSE,
+#'             paramname_shape = TRUE,
+#'             legend_shape_reverse = TRUE,
+#'             interval_shape = c("square","triangle"),
+#'             paramname_color =  FALSE,
 #'             combine_interval_shape_legend = FALSE,
 #'             table_position = "right", plot_title = "",
 #'             ref_area_col = rgb( col2rgb("gray50")[1], col2rgb("gray50")[2],col2rgb("gray50")[3],
 #'                                 max = 255, alpha = 0.1*255 ) ,
 #'             interval_col = c("steelblue"),
 #'             strip_col = "lightblue",
-#'             plot_table_ratio = 1)
+#'             plot_table_ratio = 1.5)
+#'             
+#' # Example 3b
+#'         
+#' plotdata$paramname <- c(rep("1-OH",30),rep("BZD",30))
+#' plotdata$paramname2 <- c(rep("AUC",15),rep("CMAX",15),rep("AUC",15),rep("CMAX",15))
+#'forest_plot(plotdata,
+#'            show_ref_area = TRUE,
+#'            x_facet_text_size = 13,
+#'            y_facet_text_size = 13,
+#'            ref_legend_text = "Reference (vertical line)",
+#'            area_legend_text = "Reference (vertical line)",
+#'            xlabel = "Fold Change Relative to Parameter",
+#'            facet_formula = covname~paramname2,
+#'            facet_switch = "both",
+#'            facet_scales = "free",
+#'            facet_space = "free",
+#'            legend_order = c("shape","pointinterval","ref"),
+#'            paramname_shape = TRUE,
+#'            interval_shape = c("diamond","diamond filled",
+#'                               "diamond","diamond filled"),
+#'            paramname_color =  TRUE,
+#'            combine_interval_shape_legend = TRUE,
+#'            legend_shape_reverse = TRUE,
+#'            legend_color_reverse = TRUE,
+#'            interval_legend_title="Median (points)\n95% CI (horizontal lines)",
+#'            table_position = "right", plot_title = "",
+#'            ref_area_col = "gray85" ,
+#'            interval_col = c("#ee3124", "#fdbb2f"),
+#'            strip_col = "#475c6b",
+#'            y_facet_text_col = "white",x_facet_text_col = "white",
+#'            major_x_labels         = c("1/2", "0.8","1", "1.25", "2"),
+#'            logxscale = TRUE, major_x_ticks =c(0.5,0.8,1,1.25,2),
+#'            table_text_size = 5,
+#'            plot_table_ratio = 1.5,
+#'            ref_value_by_panel = TRUE,
+#'            ref_value_by_panel_data = as.data.frame(
+#'            plotdata %>% 
+#'            distinct(paramname2,covname) %>% 
+#'            dplyr::mutate(xintercept=ifelse(paramname2=="CMAX",1,1.2))))
 #'
 #' # Example 3
 #' 
@@ -241,7 +317,7 @@ label_wrap <- function(width) {
 #' # Example 4
 #' plotdata <- get_sample_data("dataforest.csv")
 #' plotdata <- plotdata %>%
-#'   mutate(midlabel = format(round(mid,2), nsmall = 2),
+#'   dplyr::mutate(midlabel = format(round(mid,2), nsmall = 2),
 #'          lowerlabel = format(round(lower,2), nsmall = 2),
 #'          upperlabel = format(round(upper,2), nsmall = 2),
 #'          LABEL = paste0(midlabel, " [", lowerlabel, "-", upperlabel, "]"))
@@ -300,9 +376,12 @@ forest_plot <- function(
   y_facet_text_vjust = 0.5,
   x_facet_text_hjust = 0.5,
   y_facet_text_hjust = 0.5,
+  x_facet_text_col = "black",
+  y_facet_text_col = "black",
   xy_facet_text_bold = TRUE,
   x_label_text_size  = 16,
   y_label_text_size  = 16,
+  legend_title_size = 12,
   break_ylabel = FALSE,
   y_label_text_width = 25,
   table_text_size = 7,
@@ -313,28 +392,36 @@ forest_plot <- function(
   ref_legend_text = "",
   area_legend_text = "",
   interval_legend_text = "",
+  interval_legend_title = "",
+  shape_legend_title = "",
   legend_order = c("pointinterval", "ref", "area", "shape"),
   combine_area_ref_legend = TRUE,
   combine_interval_shape_legend = FALSE,
   legend_position = "top",
   show_ref_area = TRUE,
   ref_area = c(0.8, 1.25),
+  ref_area_col = "#BEBEBE50",
   show_ref_value = TRUE,
   ref_value = 1,
-  ref_area_col = "#BEBEBE50",
   ref_value_col = "black",
   ref_value_size = 1,
   ref_value_linetype = "dashed",
+  ref_value_by_panel = FALSE,
+  ref_value_by_panel_data = NULL,
   interval_col = "blue",
   interval_size = 1,
   interval_fatten = 4,
+  interval_linewidth = 1,
+  interval_shape =  "circle small",
   bsv_col = "red",
+  bsv_shape = "circle small",
   bsv_text_id = c("BSV","bsv","IIV","Bsv"),
   interval_bsv_text = "",
   strip_col = "#E5E5E5",
   paramname_shape = FALSE,
   paramname_color = FALSE,
   legend_shape_reverse = FALSE,
+  legend_color_reverse = FALSE,
   facet_switch = c("both", "y", "x", "none"),
   facet_scales = c("fixed", "free_y", "free_x", "free"),
   facet_space = c("fixed", "free_x", "free_y", "free"),
@@ -345,6 +432,7 @@ forest_plot <- function(
   strip_outline = TRUE,
   facet_spacing = 5.5,
   major_x_ticks = NULL,
+  major_x_labels = NULL,
   minor_x_ticks = NULL,
   x_range = NULL,
   logxscale = FALSE,
@@ -369,7 +457,17 @@ forest_plot <- function(
   plot_title = "\n",
   return_list = FALSE)
 {
-  ymax = ymin = x = fill = label_wrap_gen = NULL
+  ymax = ymin = x = fill = label_wrap_gen = xintercept = NULL
+  
+  if (!(missing(major_x_labels) || is.null(major_x_labels) ) &&
+      !(missing(major_x_ticks)  || is.null(major_x_ticks) )
+      ) {
+    major_x_labels_vec <- rep_len(major_x_labels , length(major_x_ticks))
+  }
+  if (missing(major_x_labels) || is.null(major_x_labels)) {
+    major_x_labels_vec <- ggplot2::waiver()
+  }
+  
   plot_margin[ which(is.na(plot_margin) ) ] <- 0
   table_margin[ which(is.na(table_margin) ) ] <- 0
   legend_margin[ which(is.na(legend_margin) ) ] <- 0
@@ -385,13 +483,6 @@ forest_plot <- function(
   strip_placement <- match.arg(strip_placement)
   facet_formula <- stats::as.formula(facet_formula)
   
-  
-  l_u <- length(unique(as.character(data$paramname)))
-  if ( paramname_color & 
-      (length(interval_col) < l_u ) ){
-    interval_col <- rep(c(interval_col,bsv_col), l_u)
-  } 
-  
   y_facet_text_angle<- ifelse(facet_switch %in% c("x","none"),
          y_facet_text_angle-0,
          y_facet_text_angle)
@@ -404,7 +495,8 @@ forest_plot <- function(
                                           angle= x_facet_text_angle,
                                           face = ifelse(xy_facet_text_bold,"bold","plain"),
                                           hjust = x_facet_text_hjust,
-                                          vjust = x_facet_text_vjust
+                                          vjust = x_facet_text_vjust,
+                                          color =  x_facet_text_col
                                           )
     table.x.strip.text <- x.strip.text
 
@@ -417,7 +509,8 @@ forest_plot <- function(
                                           angle= y_facet_text_angle,
                                           face = ifelse(xy_facet_text_bold,"bold","plain"),
                                           hjust = y_facet_text_hjust,
-                                          vjust = y_facet_text_vjust
+                                          vjust = y_facet_text_vjust,
+                                          color =  y_facet_text_col
                                           )
    table.y.strip.text <- y.strip.text
   }
@@ -476,28 +569,33 @@ forest_plot <- function(
   guide_fill <- ggplot2::guide_legend("", order = fill_pos)
   guide_linetype <- ggplot2::guide_legend("", order = linetype_pos)
   
-  guide_interval <- ggplot2::guide_legend("", order = interval_pos,
-                                          reverse = legend_shape_reverse,
+  guide_interval <- ggplot2::guide_legend(interval_legend_title, order = interval_pos,
+                                          reverse = legend_color_reverse,
                                           ncol = legend_ncol_interval)
-  guide_shape    <- ggplot2::guide_legend("", order = shape_pos,
-                                       override.aes = list(linetype = 0,
+  guide_shape    <- ggplot2::guide_legend(shape_legend_title, order = shape_pos,
+                                      override.aes = list(linetype = 0,
                                       colour = "gray"),
                                       reverse = legend_shape_reverse,
                                       ncol = legend_ncol_shape)
-
-  if (paramname_color & combine_interval_shape_legend) {
-    shape_pos <- interval_pos
-    guide_interval <- ggplot2::guide_legend("", order = interval_pos,
+  
+  if (paramname_shape && paramname_color && combine_interval_shape_legend) {
+    guide_interval <- ggplot2::guide_legend(interval_legend_title, order = interval_pos,
                                             reverse = legend_shape_reverse,
-                                            ncol = legend_ncol_interval)
-    guide_shape    <- ggplot2::guide_legend("", order = shape_pos,
+                                            ncol = legend_ncol_shape)
+    guide_shape    <- ggplot2::guide_legend(interval_legend_title, order = interval_pos,
                                             reverse = legend_shape_reverse,
                                             ncol = legend_ncol_shape)
   }
   
-  
-  
-  
+  if (!paramname_shape && !paramname_color && combine_interval_shape_legend) {
+    guide_interval <- ggplot2::guide_legend(interval_legend_title, order = interval_pos,
+                                            reverse = legend_shape_reverse,
+                                            ncol = legend_ncol_shape)
+    guide_shape    <- ggplot2::guide_legend(interval_legend_title, order = interval_pos,
+                                            reverse = legend_shape_reverse,
+                                            ncol = legend_ncol_shape)
+  }
+
   if( interval_pos==0) guide_interval = FALSE
   if( fill_pos==0) guide_fill = FALSE
   if( linetype_pos==0) guide_linetype = FALSE
@@ -512,11 +610,21 @@ forest_plot <- function(
                                               interval_bsv_text)[!duplicated(c(interval_legend_text,
                                                                                interval_bsv_text))]
                                     )
+  
+  data$pointintervalshape <-  data$pointintervalcolor
+  
  colbreakvalues<- c(interval_legend_text, interval_bsv_text)
-
  if(paramname_color) {
    data$pointintervalcolor <- data$paramname
-   colbreakvalues<- unique(data$paramname)
+   if( is.factor( data$pointintervalcolor)) colbreakvalues<- levels(data$pointintervalcolor)
+   if(!is.factor( data$pointintervalcolor)) colbreakvalues<- unique(data$pointintervalcolor)
+ }
+ 
+ shapebreakvalues<- c(interval_legend_text, interval_bsv_text)
+ if(paramname_shape) {
+   data$pointintervalshape <- data$paramname
+   if( is.factor( data$pointintervalshape)) shapebreakvalues<- levels(data$pointintervalshape)
+   if(!is.factor( data$pointintervalshape)) shapebreakvalues<- unique(data$pointintervalshape)
  }
 
   main_plot <-
@@ -531,7 +639,7 @@ forest_plot <- function(
       ggplot2::aes_string(color = "pointintervalcolor"),
     )# dummy to prevent a scales bug that I reported to ggplot2 maintainers
 
-  if (show_ref_area) {
+  if (show_ref_area && !ref_value_by_panel) {
     main_plot <- main_plot +
       ggplot2::annotate(
         "rect",
@@ -542,7 +650,9 @@ forest_plot <- function(
         fill = ref_area_col
       ) +
     ggplot2::geom_ribbon(
-      data = data.frame(x = ref_value, ymax = ref_value, ymin = ref_value,
+      data = data.frame(x = ref_value,
+                        ymax = Inf,
+                        ymin = -Inf,
                         fill = area_legend_text),
       ggplot2::aes(
         x = x,
@@ -556,36 +666,77 @@ forest_plot <- function(
 }
 # fake ribbon for fill legend
   
-  if (show_ref_value) {
+  if (show_ref_value && !ref_value_by_panel) {
     main_plot <- main_plot +
       ggplot2::geom_vline(
-        ggplot2::aes(xintercept = ref_value, linetype = ref_legend_text),
-        size = ref_value_size, color = ref_value_col 
+        ggplot2::aes(xintercept = ref_value,
+                     linetype = ref_legend_text),
+        size = ref_value_size,
+        color = ref_value_col 
       )
+  }
+  if (ref_value_by_panel &&  !is.null(ref_value_by_panel_data) ) {
+    if(show_ref_area){
+    main_plot <- main_plot +
+      ggplot2::geom_rect(data=ref_value_by_panel_data,
+                          ggplot2::aes(xmin = xintercept*min(ref_area),
+                                       xmax = xintercept*max(ref_area),
+                                       ymin = -Inf,
+                                       ymax = Inf),
+                         fill = ref_area_col,
+                         inherit.aes = FALSE,
+      )+
+      ggplot2::geom_ribbon(
+        data =  cbind(as.data.frame(ref_value_by_panel_data),
+                          x = ref_value_by_panel_data$xintercept,
+                          ymax = Inf,
+                          ymin = -Inf,
+                          fill = area_legend_text),
+        ggplot2::aes(
+          x = x,
+          ymax = ymax,
+          ymin = ymin,
+          fill = fill
+        ),
+        size = 1,
+        inherit.aes = FALSE
+      )      
+    }
+    if(show_ref_value){
+      main_plot <- main_plot +
+        ggplot2::geom_vline(data=ref_value_by_panel_data,
+                            ggplot2::aes(xintercept = xintercept,
+                                         linetype = ref_legend_text),
+                            size = ref_value_size,
+                            color = ref_value_col 
+        )
+    }
   }
   main_plot <- main_plot+
     ggplot2::geom_pointrange(
       position = ggplot2::position_dodge(width = vertical_dodge_height),
-      ggplot2::aes_string(color = "pointintervalcolor"),
+      ggplot2::aes_string(color = "pointintervalcolor",
+                          shape = "pointintervalshape"),
       size = interval_size, fatten = interval_fatten,
-      key_glyph = "pointrangeh"
+      linewidth  = interval_linewidth,
+      key_glyph = "pointrange"
     )
-  
-  if(paramname_color) {
-    main_plot <- main_plot +
-      ggplot2::scale_colour_manual("", breaks = colbreakvalues,
-                                   values = c(interval_col))
-  }
-  
-  
-  if(!paramname_color) {
-    main_plot <- main_plot +
-    ggplot2::scale_colour_manual("", breaks = colbreakvalues,
-                                 values = c(interval_col,bsv_col))
-  }
-  
 
-    
+  l_u <- length(unique(as.character(data$paramname)))
+  interval_col_values   <- c(interval_col,bsv_col)
+  interval_shape_values <- c(translate_shape_string(interval_shape),
+                             translate_shape_string(bsv_shape))
+  if(paramname_color && (length(interval_col) < l_u))  interval_col_values <- rep(interval_col_values, l_u)
+  if(paramname_shape && (length(interval_shape) < l_u))  interval_shape_values <- rep(interval_shape_values, l_u)
+
+      main_plot <- main_plot +
+      ggplot2::scale_colour_manual("", breaks = colbreakvalues,
+                                   values = c(interval_col_values))
+      main_plot <- main_plot +
+      ggplot2::scale_shape_manual("", breaks = shapebreakvalues,
+                                    values= interval_shape_values) 
+
+
     main_plot <- main_plot +
     ggplot2::scale_linetype_manual("", breaks = ref_legend_text, values = ref_value_linetype) +
     ggplot2::scale_fill_manual("", breaks = area_legend_text, values = ref_area_col)+
@@ -695,6 +846,7 @@ forest_plot <- function(
       legend.position = legend_position,
       legend.justification = c(0.5, 0.5),
       legend.direction = "horizontal",
+      legend.title = ggplot2::element_text(size = legend_title_size),
       legend.key.width = ggplot2::unit(3, "line"),
       strip.text.x = x.strip.text,
       strip.text.y = y.strip.text,
@@ -760,9 +912,11 @@ forest_plot <- function(
       ggplot2::scale_y_discrete(labels = label_wrap(y_label_text_width))
   }
   if (length(major_x_ticks) || length(minor_x_ticks)) {
+
     main_plot <- main_plot +
       ggplot2::scale_x_continuous(trans = ifelse(logxscale,"log","identity"),
         breaks = major_x_ticks,
+        labels = major_x_labels_vec,
         minor_breaks = minor_x_ticks
       )
   }
@@ -816,7 +970,7 @@ forest_plot <- function(
           position = ggplot2::position_dodge(width = vertical_dodge_height)
         ) +
           ggplot2::scale_colour_manual("", breaks = colbreakvalues,
-                                       values = c(interval_col))
+                                       values = interval_col_values)
       
     }
 
@@ -1088,3 +1242,4 @@ draw_key_pointrangeh <- function(data, params, size) {
     ggplot2::draw_key_point(transform(data, size = (data$size %||% 1.5) * 4), params)
   )
 }
+

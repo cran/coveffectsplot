@@ -58,12 +58,16 @@ function(input, output, session) {
   formatstats <- metaReactive2({
     shiny::req(maindata())
     validate(need(
+      length(input$exposurevariables) >= 1,
+      "Please select a least one exposure variable"
+    ))
+    validate(need(
       length(input$covariates) >= 1,
       "Please select a least one covariate or All"
     ))
     validate(need(
       length(input$covvalueorder) >= 1,
-      "Please select a least one covariate/All level"
+      "Please select a least one covariate value/All level"
     ))
     df <- maindata()
     metaExpr({
@@ -109,9 +113,54 @@ function(input, output, session) {
       animate = FALSE
     )
   })
-  
   outputOptions(output, "refarea", suspendWhenHidden=FALSE)
   
+  output$userdefinedcolorui <- renderUI({
+    df <- maindata()
+    shiny::req(df)
+    cols <- c("#4682ac", "#ee3124", "#fdbb2f", "#6d405d",
+              "#093b6d", "#2f71fd", "#336343", "#803333", "#279594", "#ef761b")
+
+    if(input$colourbyparamname && length(input$exposurevariables) >0){
+      lev <- 1:length(input$exposurevariables)
+      lapply(seq_along(lev), function(i) {
+        div(
+          colourpicker::colourInput(inputId = paste0("col", lev[i]),
+                                    label = paste0("Parameter Color", lev[i]),
+                                    value = cols[i],
+                                    showColour = "both",allowTransparent=TRUE, returnName = TRUE
+          ), style = "display: inline-block;")
+      })
+    }
+  })
+
+  outputOptions(output, "userdefinedcolorui", suspendWhenHidden=FALSE)
+  
+  output$userdefinedshapeui <- renderUI({
+    df <- maindata()
+    shiny::req(df)
+    #shapes <- c(16, 17, 15, 3, 7, 8,0,1,2,4,5,6,9,10,11,12,13,14,18,19,20,21,22,23,24,25)
+    shapes = c("circle small", "triangle" ,"square","plus","square cross","asterisk",
+                "square open","cross","diamond open","triangle down open","square cross",
+                "diamond plus","circle plus","star","star","square plus","circle cross",
+                "square triangle","diamond","circle","bullet",
+                "circle filled","square filled","diamond filled","triangle filled",
+                "triangle down filled")
+    if(input$shapebyparamname && length(input$exposurevariables) >0){
+      lev <- 1:length(input$exposurevariables)
+      lapply(seq_along(lev), function(i) {
+        div(
+          selectInput(inputId = paste0("shape", lev[i]),
+                                    label = paste0("Parameter Shape", lev[i]),
+                                    choices = shapes,
+                                    selected = shapes[i]),
+          style = "display: inline-block;")
+      })
+    }
+  })
+  outputOptions(output, "userdefinedshapeui", suspendWhenHidden=FALSE)
+  
+
   observeEvent(input$colourpointrangereset, {
     shinyjs::reset("colourpointrange")
   })
@@ -148,9 +197,13 @@ function(input, output, session) {
 
   output$plot <- metaRender2(renderPlot, {
     shiny::req(plotdataprepare())
-
+    shiny::req(length(input$exposurevariables)>=1)
+    if(input$colourbyparamname)   shiny::req(input$col1)
+    if(input$shapebyparamname)   shiny::req(input$shape1)
+    
     major_x_ticks <- NULL
     minor_x_ticks <- NULL
+    major_x_labels <- NULL
     if (input$customxticks) {
       tryCatch({
          major_x_ticks <- as.numeric(unique(unlist(strsplit(input$xaxisbreaks, ",")[[1]])))
@@ -159,13 +212,37 @@ function(input, output, session) {
         minor_x_ticks <- as.numeric(unique(unlist(strsplit(input$xaxisminorbreaks, ",")[[1]])))
       }, warning = function(w) {}, error = function(e) {})
     }
+    if (input$customxticks && input$customxlabels) {
+      tryCatch({
+        major_x_labels <- as.character(unique(unlist(strsplit(input$xaxislabels, ",")[[1]])))
+      }, warning = function(w) {}, error = function(e) {})
+    }
     x_range <- if (input$userxzoom) c(input$lowerxin, input$upperxin) else NULL
     ref_value <- if (is.na(input$refvalue)) 1 else input$refvalue
     
+    ncols <- length(input$exposurevariables)
+    
+    if(!input$colourbyparamname){
+      paramcols <- input$colourpointrange
+    }
+    if(input$colourbyparamname){
+      paramcols <- paste0("c(", paste0("input$col", 1:ncols, collapse = ", "), ")")
+      paramcols <- eval(parse(text = paramcols))
+    }
+    
+    if(!input$shapebyparamname){
+      paramshapes <- input$shapepointrange
+    }
+    if(input$shapebyparamname){
+      paramshapes <- paste0("c(", paste0("input$shape", 1:ncols, collapse = ", "), ")")
+      paramshapes <- eval(parse(text = paramshapes))
+    }
+    
     metaExpr({
       summarydata <- ..(plotdataprepare())
-        
-      plot <- forest_plot(
+      paramcols   <- ..(paramcols)
+      paramshapes <- ..(paramshapes)
+    plot <- forest_plot(
         data = summarydata,
         facet_formula = ..(input$facetformula),
         xlabel = ..(input$xaxistitle),
@@ -178,9 +255,12 @@ function(input, output, session) {
         y_facet_text_vjust = ..(input$y_facet_text_vjust),
         x_facet_text_hjust = ..(input$x_facet_text_hjust),
         y_facet_text_hjust = ..(input$y_facet_text_hjust),
+        x_facet_text_col   = ..(input$x_facet_text_col),
+        y_facet_text_col   = ..(input$y_facet_text_col),
         xy_facet_text_bold = ..(input$boldfacettext),
         x_label_text_size = ..(input$xlablesize),
         y_label_text_size = ..(input$ylablesize),
+        legend_title_size = ..(input$legendtitlesize),
         break_ylabel = ..(input$breakylabel),
         y_label_text_width= ..(input$ylabeltextwidth),
         table_text_size = ..(input$tabletextsize),
@@ -191,6 +271,8 @@ function(input, output, session) {
         ref_legend_text = escape_newline(..(input$customlinetypetitle)),
         area_legend_text = escape_newline(..(input$customfilltitle)),
         interval_legend_text = escape_newline(..(input$customcolourtitle)),
+        interval_legend_title = escape_newline(..(input$customcolourtitletext)),
+        shape_legend_title = escape_newline(..(input$customshapetitletext)),
         interval_bsv_text = escape_newline(..(input$custombsvtitle)),
         legend_order = ..(input$legendordering),
         combine_area_ref_legend = ..(input$combineareareflegend),
@@ -204,14 +286,18 @@ function(input, output, session) {
         ref_value_col = ..(input$colorrefvalue),
         ref_value_size = ..(input$sizerefvalue),
         ref_value_linetype = ..(input$linetyperefvalue),
-        interval_col = ..(input$colourpointrange),
+        interval_col = paramcols,
         interval_size = ..(input$sizepointrange),
         interval_fatten = ..(input$fattenpointrange),
+        interval_linewidth = ..(input$linewidthpointrange),
+        interval_shape = paramshapes,
         bsv_col      = ..(input$colourbsvrange),
+        bsv_shape = ..(input$shapebsvrange),
         strip_col = ..(input$stripbackgroundfill),
         paramname_shape = ..(input$shapebyparamname),
         paramname_color = ..(input$colourbyparamname),
         legend_shape_reverse = ..(input$legendshapereverse),
+        legend_color_reverse = ..(input$legendcoloreverse),
         facet_switch = ..(input$facetswitch),
         facet_scales = ..(input$facetscales),
         facet_space = ..(input$facetspace),
@@ -222,6 +308,7 @@ function(input, output, session) {
         strip_outline = ..(input$removestrip),
         facet_spacing = ..(input$panelspacing),
         major_x_ticks = ..(major_x_ticks),
+        major_x_labels = ..(major_x_labels),
         minor_x_ticks = ..(minor_x_ticks),
         x_range = ..(x_range),
         logxscale = ..(input$logxscale),

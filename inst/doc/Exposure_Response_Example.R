@@ -17,7 +17,11 @@ library(tidyr)
 library(mrgsolve)
 library(ggridges)
 library(ggstance)
+library(patchwork)
+library(ggdist)
+library(ggrepel)
 library(Rcpp)
+library(egg)
 theme_set(theme_bw())
 nsim <- 100 # for vignette to make it run faster otherwise increase to 1000
 #utility function to simulate varying one covariate at a time keeping the rest at the reference
@@ -33,6 +37,7 @@ expand.modelframe <- function(..., rv, covcol="covname") {
   do.call(rbind, res)
 }
 
+#useful for logit/inverselogit transforms
 expit <- function(x) exp(x)/ (1 + exp(x) )
  
 
@@ -48,22 +53,25 @@ $PARAM @annotated
 TVCL    : 10  : Clearance CL (L/h)
 WTCL    : 0.75: Weight on CL (ref. 70 kg)
 TVEMAX  : 5   : Maximum Drug Effect
-SEVEMAX : 3   : Severity Reduction of Drug Effect
+SEVEMAX : 2.5   : Severity Reduction of Drug Effect
 AUC50   : 7.5 : Area Under the Curve providing half maximal response
-BASEP   : 0.1 : Baseline Probability of Response 
+TVBASEP : 0.1 : Baseline Probability of Response 
 
 $PARAM @annotated // reference values for covariate
 WT      : 70  : Weight (kg)
 SEV     : 0   : Sex (0=Female, 1=Male)
 DOSE    : 75  : Dose (mg)
 $OMEGA @annotated @block
-nCL     :0.09 : ETA on CL
+nCL     : 0.16 : ETA on CL
 
+$OMEGA @annotated @block
+nInt    : 0.05 : ETA on CL
 
 $PRED
 double CL = TVCL *
     pow((WT/70.0), WTCL)*exp(ETA(1)); 
 double EMAX = TVEMAX - SEVEMAX*(SEV == 1) ; 
+double BASEP = TVBASEP *exp(ETA(2)); 
 double Intercept = log(BASEP/(1-BASEP));
 capture CLi = CL;
 capture AUC = DOSE/CL;
@@ -84,44 +92,133 @@ simout <- modexprespsim %>%
   mrgsim()%>%
   as.data.frame
 
-## ----exprespmodeplotl, collapse=TRUE------------------------------------------
+## ----exprespmodeplotl, collapse=TRUE, fig.height= 7, fig.width= 9-------------
 WT_names <- c(
   '70'="Weight: 70 kg"
 )
 SEV_names <- c(
-  '0'="Severity: 0 (Not Severe)"
+  '0'="Severity: Not Severe"
 )
-probplot<- ggplot(simout, aes(AUC,DV,linetype=factor(SEV))) +
+simout$SEV_cat <- "Not Severe"
+
+vlines <- quantile(simout$AUC[simout$AUC>0],probs = c(0,1/4,0.5,3/4,1),na.rm = TRUE)
+
+
+simoutdataprobsdose <- simout %>% 
+  group_by(DOSE) %>% 
+  summarise(probs = mean(DV),
+            n = n(),
+            lower =  probs - qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            upper =  probs + qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            n0 = length(DV[DV==0]),
+            n1= length(DV[DV==1]),
+            medAUC= median(AUC))
+
+simoutdataprobs <- simout %>% 
+  mutate(AUC_bins=table1::eqcut(AUC,4,withhold = list(PLACEBO=AUC==0))) %>% 
+  group_by(AUC_bins) %>% 
+  summarise(probs = mean(DV),
+            n = n(),
+            lower =  probs - qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            upper =  probs + qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            n0 = length(DV[DV==0]),
+            n1= length(DV[DV==1]),
+            medAUC= median(AUC))
+
+
+
+percentineachbreakcategory <- simout %>% 
+  mutate(AUC_bins=table1::eqcut(AUC,4,withhold = list(PLACEBO=AUC==0))) %>% 
+  group_by(DOSE) %>% 
+  mutate(Ntot= n())%>% 
+  group_by(DOSE,AUC_bins,WT,SEV) %>% 
+  mutate(Ncat=n(),xmed=median(AUC))%>% 
+  mutate(percentage=Ncat/Ntot)%>% 
+  distinct(DOSE,xmed,AUC_bins,percentage,WT,SEV)
+
+
+
+probplot <- ggplot(simout, aes(AUC,DV,linetype=factor(SEV_cat))) +
   facet_grid( WT~SEV,labeller=labeller(WT=WT_names,SEV=SEV_names))+
+    geom_vline(xintercept = vlines)+
   geom_point(position=position_jitter(height=0.02,width=0.1),
-             aes(color=factor(DOSE)),size=1,alpha=0.5)+
-  geom_line(aes(y=P1),color="black",size=1.1)+
-  geom_label(data=data.frame(
-    x=9,y=TypicalProb,label=paste(round(100*TypicalProb,1),"%"),SEV=0),
-    aes(x=x,y=y,label=label),fill="transparent")+
-  geom_label(data=data.frame(
-    x=0.37,y=0.1,label=paste(round(100*0.1,1),"%"),SEV=0),
-    aes(x=x,y=y,label=label),fill="transparent")+
+             aes(color=factor(DOSE)),size=1,alpha=0.2)+
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = TRUE) +
+  geom_pointrange(data=simoutdataprobs,aes(medAUC,probs,ymin=lower,ymax=upper),
+                  inherit.aes = FALSE,alpha=0.2)+
+  geom_text(data=simoutdataprobs, aes(x=medAUC,y=probs,
+                label=paste(round(100*probs,1),"%")),
+                  inherit.aes = FALSE,hjust=-0.15,vjust=-0.15,size=4)+
+  geom_point(data=simoutdataprobsdose %>% filter(DOSE!=0),
+             aes(x=medAUC,y=probs,color=factor(DOSE)),
+             inherit.aes = FALSE,size=4, shape="diamond")+
+  geom_text_repel(data=simoutdataprobs, aes(x=medAUC,y=Inf,
+                label=paste(n1,n,sep = "/")),
+                  inherit.aes = FALSE,direction="y")+
   labs(color="Dose (mg)",y="Probability of Response",
        linetype="Severity")+
-  theme_bw() + 
+  theme_bw(base_size = 16) + 
   theme(legend.position = "top")
-probplot
+
+exposureplot <- ggplot(simout,
+         aes(y = as.factor(DOSE),x = AUC,
+             fill = as.factor(DOSE))) +
+    facet_grid( WT~SEV,labeller=labeller(WT=WT_names,SEV=SEV_names))+
+    geom_vline(xintercept = vlines)+
+   geom_text(data=data.frame(vlines), aes(x=vlines,y=-Inf,
+                label=paste(round(vlines,1))),
+                  inherit.aes = FALSE,vjust=-0.1,hjust=1)+
+  stat_slab(scale = 1, alpha= 0.9,
+            aes(fill_ramp =  after_stat(
+              ifelse(x<= vlines[2],"",
+                     ifelse(x>vlines[2] & x <=vlines[3],"50%",
+                            ifelse(x>vlines[3] & x<=vlines[4],"50%","")))
+              )
+              )
+  )+
+  stat_pointinterval(.width = c(.5,1))+
+    geom_label(data=percentineachbreakcategory,
+                   aes(x=xmed, label=round(100*percentage,0) ),alpha=0.5)+
+     theme_bw(base_size = 16)+
+    theme(legend.position="none",
+          strip.background.x = element_blank(),
+          strip.text.x = element_blank(),
+          plot.background = element_blank())+
+   labs(x = "AUC", y = "DOSE (mg)")+
+  scale_y_discrete(breaks= c(0,75),labels=c("PLB"," 75"))
+egg::ggarrange(
+  (probplot+
+  theme(axis.title.x.bottom = element_blank(),
+        axis.text.x.bottom = element_blank(),
+        axis.ticks.x =  element_blank(),
+        plot.margin = unit(c(0,0,0,0), "cm"))) ,
+  (exposureplot +
+  theme(plot.margin = unit(c(0,0,0,0), "cm") )) ,heights = c(1,0.5))
+   
+ 
+
+
 
 ## ----bsvrangeplot, collapse=TRUE----------------------------------------------
-simoutbsvplacebo <- simout %>% 
-  filter(DOSE==0)%>% 
-  mutate(LGST =LGST)%>%
-  gather(paramname, paramvalue,LGST,P1)%>%
-  group_by(paramname)%>%
-  dplyr::summarize(P50 = quantile(paramvalue, 0.5)
-)
-simoutbsv <- simout %>% 
-  mutate(logodds =LGST)%>% 
-  filter(DOSE==75)
-# the probability of response at the typical AUC
-simoutbsvlong  <- simoutbsv  %>%
-  mutate(P1std=P1/TypicalProb) %>% 
+
+simout <- modexprespsim %>%
+  data_set(simdata) %>%
+  carry.out(WT, DOSE, SEV) %>%
+  mrgsim()%>%
+  as.data.frame
+
+simoutbsvref <- simout %>% 
+  gather(paramname, paramvalue,P1)%>%
+  group_by(paramname,DOSE)%>%
+  dplyr::summarize(Pstdref = quantile(paramvalue, 0.5,na.rm =TRUE)) %>%
+  ungroup() %>% 
+  select(DOSE, Pstdref)
+simout <- left_join(simout,simoutbsvref)
+simoutbsvlong  <- simout  %>%
+  group_by(DOSE)%>%
+  mutate(P1std=P1/Pstdref) %>% 
   gather(paramname, paramvalue,P1std,P1)
 
 
@@ -130,12 +227,13 @@ yvar_names <- c(
   'P1'="Probability"
 )
 
-pbsvranges<-  ggplot(simoutbsvlong, aes(
+pbsvranges<-  ggplot(simoutbsvlong %>% 
+                       filter(DOSE!=0), aes(
         x      = paramvalue,
         y      = paramname,
         fill   = factor(..quantile..),
         height = ..ndensity..)) +
-  facet_wrap(paramname~. , scales="free", ncol=1,
+  facet_wrap(paramname~DOSE , scales="free_y", ncol=1,
              labeller=labeller(paramname=yvar_names) ) +
   stat_density_ridges(
     geom="density_ridges_gradient", calc_ecdf=TRUE,
@@ -154,11 +252,8 @@ pbsvranges<-  ggplot(simoutbsvlong, aes(
     axis.ticks.y    = element_blank(),
     axis.title.y    = element_blank()) +
   labs(x="Parameters", y="") +
-  scale_x_log10() +
-  coord_cartesian(expand=FALSE)
-
-pbsvranges
-
+  scale_x_log10(breaks=c(0.5,0.8,1,1.25,2)) +
+  coord_cartesian(expand=FALSE,xlim=c(0.2,2))
 
 simoutbsvranges <- simoutbsvlong %>%
   group_by(paramname)%>%
@@ -169,18 +264,7 @@ simoutbsvranges <- simoutbsvlong %>%
     P75 = quantile(paramvalue, 0.75),
     P95 = quantile(paramvalue, 0.95))
 simoutbsvranges
-
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
-# probplot <-  probplot +theme_bw(base_size=18)+
-#    theme(legend.position = "top")
-# pbsvranges <- pbsvranges+theme_bw(base_size=22)+
-#   theme(
-#     legend.position = "none",
-#     axis.text.y     = element_blank(),
-#     axis.ticks.y    = element_blank(),
-#     axis.title.y    = element_blank())
-#  ggsave(plot = egg::ggarrange(probplot , pbsvranges,ncol=2),
-#         "Figure_8_1.png", device="png",type="cairo-png",width = 10, height = 5)
+pbsvranges
 
 ## ---- collapse=TRUE-----------------------------------------------------------
 set.seed(678549)
@@ -188,7 +272,7 @@ thmeans <- c(10,0.75, #TVCL WTCL
              5,3, # TVEMAX  SEVEMAX
              7.5, # AUC50
               0.1) #BASEP
-thvariances<- (thmeans*0.15)^2
+thvariances<- (thmeans*0.25)^2
 thecorrelations <- matrix(ncol=length(thmeans),nrow=length(thmeans))
 diag(thecorrelations)<- 1
 thecorrelations[lower.tri(thecorrelations, diag = FALSE)]<- 0.2
@@ -232,22 +316,22 @@ for(i in 1:nsim) {
 }
 
 ## ---- collapse=TRUE-----------------------------------------------------------
+
+wt.labs <- c("weight: 50 kg","weight: 60 kg","weight: 70 kg","weight: 80 kg","weight: 90 kg","(all)")
+names(wt.labs) <- c("50","60","70","80","90","(all)")
+
+SEV_names <- c(
+  '0'="Not Severe",
+  '1'="Severe"
+
+)
+
 stdprobplot<- ggplot(iter_sims, aes(DOSE,P1,col=factor(SEV) ) )+
   geom_point(aes(group=interaction(ID,rep)),alpha=0.5,size=3)+
   geom_hline(yintercept=TypicalProb)+
-  facet_grid(SEV~ WT,labeller = label_both)+
+  facet_grid(SEV~ WT,labeller = labeller(WT=wt.labs, SEV = SEV_names))+
   labs(y="Probability of Response", colour="Severity")
 stdprobplot
-
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
-#  stdprobplot<-  stdprobplot+
-#   theme(axis.title.y = element_text(size=15),
-#         legend.position = c(0.8,0.2))+
-#   scale_y_continuous( sec.axis = sec_axis(~ . /TypicalProb,
-#                                           name = "Standardized Probability"))
-# stdprobplot
-#   ggsave("Figure_8_2.png", device="png",type="cairo-png",
-#          width = 7, height = 4)
 
 ## ---- fig.height= 7, collapse=TRUE--------------------------------------------
 iter_sims <- iter_sims %>%
@@ -305,13 +389,6 @@ ggplot(iter_sims,aes(x=paramvalue,y=covvalue))+
   theme_bw()+
   theme(axis.title = element_blank(),strip.placement = "outside")
 
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
-  #   last_plot()+theme_bw(base_size = 16)+
-  # theme(legend.position = "none",
-  #       axis.title = element_blank(),strip.placement = "outside")
-  #  ggsave("Figure_8_3.png", device="png",type="cairo-png",
-  #         width= 7, height = 6,dpi=72)
-
 ## ----plot3, collapse=TRUE-----------------------------------------------------
 coveffectsdatacovrep <- iter_sims %>%
   dplyr::group_by(paramname,ID,WT,DOSE,SEV,covname,covvalue) %>% 
@@ -365,6 +442,10 @@ forest_plot(coveffectsdatacovrepbsv,
                             show_ref_value=TRUE,
                             ref_legend_text = ref_legend_text,
                             plot_table_ratio = 2,
+                            interval_shape = "circle small",
+                            bsv_shape = "triangle",
+                            legend_order = c("pointinterval","shape","area","ref"),
+                            combine_interval_shape_legend = TRUE,
                             base_size = 12,
                             table_text_size = 4,
                             y_label_text_size      = 12,
@@ -378,5 +459,237 @@ forest_plot(coveffectsdatacovrepbsv,
                             x_range                = c(0.1, 1.5))
 
 dev.off()
+
+
+## ----plot4, collapse=TRUE, fig.height= 6, fig.width= 12-----------------------
+covcombdr <- expand.grid(
+  WT  = c(50,70,90),
+  DOSE = c(0,25,50,75,100,150),
+  SEV = c(0,1)
+)
+
+covcombdr <- covcombdr[!duplicated(
+  paste(covcombdr$WT,covcombdr$WT,covcombdr$DOSE,covcombdr$SEV)),]
+covcombdr$ID <- 1:nrow(covcombdr)
+
+iter_sims <- NULL
+for(i in 1:nsim) {
+  idata <- as.data.frame(covcombdr)
+  idata$covname<- NULL
+  data.all <- idata
+  data.all$TVCL     <- as.numeric(sim_parameters[i,1])
+  data.all$WTCL     <- as.numeric(sim_parameters[i,2])
+  data.all$TVEMAX   <- as.numeric(sim_parameters[i,3])
+  data.all$SEVEMAX  <- as.numeric(sim_parameters[i,4])
+  data.all$AUC50    <- as.numeric(sim_parameters[i,5])
+  data.all$BASEP    <- as.numeric(sim_parameters[i,6])
+  out <- modexprespsim %>%
+    data_set(data.all) %>%
+    carry.out(CL,WT, DOSE, SEV, AUC) %>%
+    zero_re() %>% 
+    mrgsim()
+  dfsimunc <- as.data.frame(out%>% mutate(rep = i) )
+  iter_sims <- rbind(iter_sims,dfsimunc)
+}
+iter_sims <- data.table(iter_sims)
+
+## ----plot4b, collapse=TRUE, fig.height= 6, fig.width= 12----------------------
+summary_P1 <- function(P1) {
+  x <- c(
+    P1med = median(P1),
+    P1low = quantile(P1, probs = 0.05),
+    P1up =  quantile(P1, probs = 0.95)
+  )
+  data.table(paramname=names(x), paramvalue=x)
+}
+
+iter_sims_sum <- iter_sims[, summary_P1(P1), by=.( DOSE, WT, SEV)]
+iter_sims_sum <- spread(iter_sims_sum,paramname,paramvalue)
+iter_sims_sum <- as.data.frame(iter_sims_sum)
+wt.labs <- c("weight: 50 kg","weight: 60 kg","weight: 70 kg","weight: 80 kg","weight: 90 kg","(all)")
+names(wt.labs) <- c("50","60","70","80","90","(all)")
+
+SEV_names <- c(
+  '0'="Not Severe",
+  '1'="Severe"
+
+)
+
+iter_sims_sum_ref <- iter_sims_sum %>% 
+  filter(WT==70,SEV==0)
+iter_sims_sum_ref$WT <- NULL
+iter_sims_sum_ref$SEV <- NULL
+
+plot1 <- ggplot(iter_sims_sum, aes(DOSE,P1med,col=factor(SEV) ) )+
+  geom_ribbon(data=iter_sims_sum_ref,aes(x=DOSE,
+                         ymin =`P1low.5%`,
+                         ymax =`P1up.95%`),inherit.aes = FALSE,
+              fill = "gray", alpha=0.2, color="transparent")+
+    geom_line(data=iter_sims_sum_ref,aes(x=DOSE,
+                         y =P1med),inherit.aes = FALSE,
+              color = "black", alpha=1)+
+  geom_pointrange(aes(group=interaction(WT,SEV,DOSE),
+                         ymin =`P1low.5%`,
+                         ymax =`P1up.95%`,
+                      shape = as.factor(WT)),alpha=0.5,
+                  position = position_dodge(width=10))+
+  geom_hline(yintercept=TypicalProb)+
+  facet_grid(SEV~ WT,labeller = labeller(WT=wt.labs, SEV = SEV_names))+
+  theme_bw(base_size = 14)+
+  labs(color="Severity",y = "Probability of Response", x = "Dose (mg)",
+       shape = "Weight (kg)")+
+  scale_x_continuous(breaks=unique(iter_sims_sum$DOSE),guide = guide_axis(n.dodge = 2))+
+  theme(legend.position = "none")
+
+
+
+
+plot2 <- plot1 +
+  facet_grid(SEV~ .,labeller = labeller(WT=wt.labs, SEV = SEV_names))+
+  theme(axis.title.y.left = element_blank(),
+        axis.ticks.y.left = element_blank(),
+        axis.text.y.left = element_blank(),legend.position = "right")
+
+egg::ggarrange( plot1 ,plot2 ,widths = c(1,0.3),
+                bottom = "The black line and 95%CI gray area reference curve for Weight = 70 kg and Not Severe\nis kept in the background of all panels" )
+
+
+## ----plot5, collapse=TRUE, fig.height= 6, fig.width= 12-----------------------
+
+vlines <- quantile(iter_sims$AUC[iter_sims$AUC>0],probs = c(0,1/3,2/3,1),na.rm = TRUE)
+iter_sims$PLACEBO <- ifelse(iter_sims$DOSE>0,"Active","PLACEBO")
+simoutdataprobs <- iter_sims %>% 
+  mutate(AUC_bins=table1::eqcut(AUC,3,withhold = list(PLACEBO=AUC==0))) %>% 
+  group_by(PLACEBO, WT,SEV,AUC_bins) %>% 
+  summarise(probs = mean(DV),
+            n = n(),
+            lower =  probs - qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            upper =  probs + qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            n0 = length(DV[DV==0]),
+            n1= length(DV[DV==1]),
+            medAUC= median(AUC))
+
+simoutdataprobsdose <- iter_sims %>% 
+  group_by(PLACEBO, WT,SEV,DOSE) %>% 
+  summarise(probs = mean(DV),
+            n = n(),
+            lower =  probs - qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            upper =  probs + qnorm(1-0.05/2)*sqrt((1/n)*probs*(1-probs)),
+            n0 = length(DV[DV==0]),
+            n1= length(DV[DV==1]),
+            medAUC= median(AUC))
+
+
+SEV_names <- c(
+  '0'="Not Severe",
+  '1'="Severe"
+
+)
+wt.labs <- c("weight: 50 kg","weight: 70 kg","weight: 90 kg")
+names(wt.labs) <- c("50","70","90")
+
+
+
+a <- ggplot(data=data.frame(iter_sims),aes(AUC, P1,
+                                           linetype = as.factor(SEV),
+                                           color = as.factor(SEV),
+                                           fill = as.factor(SEV),
+                                           group=interaction(WT,SEV)))+
+    facet_grid(.~ WT,labeller = labeller(WT=wt.labs, SEV = SEV_names))+
+  geom_vline(xintercept = vlines)+
+  geom_smooth(method = "glm", method.args = list(family = "binomial")
+              ) +
+   theme_bw(base_size = 14)+
+  theme(axis.title.x.bottom = element_blank(),
+        axis.text.x.bottom = element_blank(),
+         axis.ticks.x =  element_blank(),
+        legend.position = "none")+
+  labs(y="Probability of response",linetype="Severity",
+       color = "Weight (kg)", fill = "Weight (kg)")
+ b <-  ggplot(iter_sims,
+         aes(y = as.factor(DOSE),x = AUC,fill = as.factor(SEV))) +
+       facet_grid(.~ WT,labeller = labeller(WT=wt.labs, SEV = SEV_names))+
+    geom_vline(xintercept = vlines)+
+   stat_slab(scale = 4, alpha=0.5,position = "dodgejust")+
+   stat_pointinterval(.width = c(.5,1),position = "dodgejust")+
+     theme_bw(base_size = 14)+
+    theme(legend.position="none",
+          strip.background.x = element_blank(),
+          strip.text.x = element_blank())+
+   labs(x = "AUC", y = "DOSE (mg)")
+egg::ggarrange(a,b,heights=c(1,0.6))
+
+
+## ----plot667, collapse=TRUE, include=TRUE, fig.height= 16, fig.width= 12------
+
+percentineachbreakcategory <- iter_sims %>% 
+  mutate(AUC_bins=table1::eqcut(AUC,3,withhold = list(PLACEBO=AUC==0))) %>% 
+  group_by(DOSE, WT,SEV) %>% 
+  mutate(Ntot= n())%>% 
+  group_by(DOSE,WT,SEV,AUC_bins) %>% 
+  mutate(Ncat=n(),xmed=median(AUC))%>% 
+  mutate(percentage=Ncat/Ntot)%>% 
+  distinct(DOSE,xmed,AUC_bins,percentage,WT,SEV)
+
+
+probplot<- ggplot(iter_sims , aes(AUC,DV)) +
+  facet_grid(SEV ~WT,labeller=labeller(WT=wt.labs,SEV=SEV_names))+
+  geom_smooth(data=iter_sims %>%
+                filter(WT==70,SEV ==0) %>% 
+                mutate(SEV=NULL,WT=NULL),method = "glm", 
+              method.args = list(family = "binomial"), 
+              se = TRUE,color="white",fill="lightgray",alpha=0.3) +
+  geom_vline(xintercept = vlines)+
+  geom_point(position=position_jitter(height=0.02,width=0.1),size=1,alpha=0.2,
+             aes(colour=factor(DOSE)))+
+  geom_smooth(method = "glm", 
+              method.args = list(family = "binomial"), 
+              se = TRUE,color="black",fill="blue",alpha=0.5,
+              aes(linetype=as.factor(SEV))) +
+  geom_pointrange(data=simoutdataprobs,aes(medAUC,probs,ymin=lower,ymax=upper),
+                  inherit.aes = TRUE,alpha=0.5)+
+  geom_text(data=simoutdataprobs, aes(x=medAUC,y=probs,
+                                      label=paste(paste(round(100*probs,1),"%")
+                           #, paste(n1,n,sep = "/"),sep = "\n"
+                                            )),
+            inherit.aes = TRUE,hjust=-0.15,vjust=-0.15,size=4)+
+  geom_point(data=simoutdataprobsdose, aes(x=medAUC,y=probs,colour=factor(DOSE)),
+            inherit.aes = FALSE,shape="diamond",size=4,alpha=0.3)+
+  theme_bw(base_size = 16)+ 
+  theme(legend.position = "top")+
+  labs(color="Dose (mg)",y="Probability of Response",
+       linetype="Severity")
+
+
+explot<- ggplot(iter_sims,aes(y = as.factor(DOSE),x = AUC,
+                           fill = as.factor(DOSE))) +
+  facet_grid(SEV ~WT,labeller=labeller(WT=wt.labs,SEV=SEV_names))+
+  geom_vline(xintercept = vlines)+
+  geom_text(data=data.frame(vlines), aes(x=vlines,y=-Inf,
+                                         label=paste(round(vlines,1))),
+            inherit.aes = FALSE,vjust=-0.1,hjust=1)+
+  stat_slab( aes(fill_ramp =  after_stat(
+              ifelse(x<= vlines[2],"lower",
+                     ifelse(x>vlines[2] & x <=vlines[3],"middle",
+                            ifelse(x>vlines[3],"upper","")))
+            )
+            ),scale=1,alpha=0.8,normalize ="groups"
+  )+
+  stat_pointinterval(.width = c(.5,1))+
+  geom_label_repel(data=percentineachbreakcategory,
+             aes(x=xmed, label=round(100*percentage,0) ),alpha=0.5,direction = "y")+
+  theme_bw(base_size = 16)+
+  theme(legend.position="none",
+        strip.background.x = element_blank(),
+        strip.text.x = element_blank(),
+        plot.background = element_blank())+
+  labs(x = "AUC", y = "DOSE (mg)")
+
+egg::ggarrange(probplot +
+    theme(axis.title.x.bottom = element_blank(),
+          axis.text.x.bottom = element_blank(),
+          axis.ticks.x =  element_blank() ) , explot,
+  heights=c(1,2))
+
 
 

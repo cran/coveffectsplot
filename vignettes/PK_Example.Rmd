@@ -33,6 +33,7 @@ library(dplyr)
 library(table1)
 library(egg)
 library(data.table)
+library(ggh4x)
 library(patchwork)
 theme_set(theme_bw())
 #utility function to simulate varying one covariate at a time keeping the rest at the reference
@@ -170,16 +171,30 @@ outputsim$SEX <- factor(outputsim$SEX, labels="Female")
 set.seed(678549)
 plotdata <- outputsim[ID %in% sample(unique(ID), 500)]
 
+# New facet label names for dose variable
+albumin.labs <- c("albumin: 45 ng/mL")
+names(albumin.labs) <- c("45")
+wt.labs <- c("weight: 85 kg")
+names(wt.labs) <- c("85")
+
+
 p1 <- ggplot(plotdata, aes(time, CP, group = ID)) +
   geom_line(alpha = 0.2, size = 0.1) +
-  facet_grid(~ WT + SEX + ALB, labeller = label_both) +
+  facet_grid(~ WT + ALB + SEX,
+             labeller =  labeller(ALB = albumin.labs,
+                                  WT = wt.labs)) +
   labs(y = "Plasma Concentrations", x = "Time (h)")
 
 p2 <- ggplot(plotdata, aes(time, CP, group = ID)) +
   geom_line(alpha = 0.2, size = 0.1) +
-  facet_grid(~ WT + SEX + ALB, labeller = label_both) +
+  facet_grid(~ WT + ALB + SEX,
+             labeller =  labeller(ALB = albumin.labs,
+                                  WT = wt.labs)) +
   scale_y_log10() +
-  labs(y = expression(Log[10]~Plasma~Concentrations), x = "Time (h)")
+  labs(y = "Plasma~Concentrations\n(logarithmic scale)", x = "Time (h)")
+  #labs(y = expression(Log[10]~Plasma~Concentrations), x = "Time (h)")+
+
+
 
 egg::ggarrange(p1, p2, ncol = 2)
 ```
@@ -187,7 +202,7 @@ egg::ggarrange(p1, p2, ncol = 2)
 ### Compute PK Parameters, Plot and Summarize BSV
 In this section we compute the PK parameters of interest, provide a plot of the parameters as well as of the standardized ones. We also summarize and report the BSV as ranges of 50 and 90% of patients for each PK parameter. Later on we might choose to include these ranges in the `coveffectsplot` or not.
 
-```{r computenca , fig.width=7 , message=FALSE }
+```{r computenca, fig.width=7 , message=FALSE }
 derive.exposure <- function(time, CP) {
   n <- length(time)
   x <- c(
@@ -275,7 +290,7 @@ Based on our observed covariate data, we compute percentiles of interest that we
 ```{r covcomb , fig.width=7 }
 reference.values <- data.frame(WT = 85, ALB = 45, SEX = 0)   
 
-covcomb <- expand.modelframe(
+covcomb <- expand.modelframe( #defined at the top and now expand_modelframe was added
   WT  = c(56, 72, 98, 128), # P05, P25, P50, P75, P95
   ALB = c(40, 50),          # P05, P50, P95
   SEX = c(1),               # Reference is for SEX=0 (female)
@@ -292,7 +307,7 @@ covcomb
 ### Simulation at Unique Combinations of Covariates
 As a first step, we simulate without uncertainty and without BSV using `zero_re()` at unique combination of covariates and provide a plot to visualize the effects.  
 
-```{r, fig.width=7 ,message=FALSE, fig.height=5}
+```{r, fig.width=8.5, fig.height=7, ,message=FALSE}
 idata <- data.table::copy(covcomb)
 idata$covname <-  NULL
 ev1 <- ev(time=0, amt=100, cmt=1)
@@ -308,9 +323,15 @@ outcovcomb<- modcovsim %>%
 
 outcovcomb$SEX <- factor(outcovcomb$SEX, labels=c("Female", "Male"))
 
+albumin.labs <- c("albumin: 40 ng/mL","albumin: 45 ng/mL","albumin: 50 ng/mL")
+names(albumin.labs) <- c("40","45","50")
+wt.labs <- c("weight: 56 kg","weight: 72 kg","weight: 85 kg","weight: 98 kg","weight: 128 kg")
+names(wt.labs) <- c("56","72","85","98","128")
+
 pkprofiletypical <- ggplot(outcovcomb, aes(x=time, y=CP, col=factor(WT), linetype=SEX)) +
-  geom_line(aes(group=ID), alpha=1, size=1.5) +
-  facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value, WT = label_both),
+  geom_line(aes(group=ID), alpha = 1, linewidth = 1) +
+  facet_nested(ALB + SEX ~ WT,
+               labeller= labeller(ALB = albumin.labs, WT = wt.labs, SEX = label_value),
              switch = "y") +
   labs(
     x        = "Time (h)",
@@ -322,15 +343,15 @@ pkprofiletypical <- ggplot(outcovcomb, aes(x=time, y=CP, col=factor(WT), linetyp
 
 pkprofiletypical <- pkprofiletypical +theme_bw(base_size = 13)+
   theme(axis.title.y = element_text(size=15))+
-  guides(colour=guide_legend(override.aes = list(alpha=1,size=0.5)),
-         linetype=guide_legend(override.aes = list(size=0.5)))+
+  guides(colour   = guide_legend(override.aes = list(alpha = 1, linewidth = 1)),
+         linetype = guide_legend(override.aes = list(linewidth = 1), order = 1))+
   coord_cartesian(ylim=c(0,4))
 pkprofiletypical
 
 ```
 
 ## Adding Uncertainty from a Varcov Matrix
-First, we will invent a varcov matrix by assuming 15% relative standard errors and correlations of 0.2 across the board. We then simulate a 100 set of parameters using a multivariate normal (kept at 100 for the vignette, use more replicates for a real project). Also, unless the model was written in a way to allow unconstrained parameter values, care should be taken to make sure the simulated parameters are valid and make sense. When available, use the set of parameters from bootstrap replicates.   
+First, we will invent a varcov matrix by assuming 25% relative standard errors and correlations of 0.2 across the board. We then simulate a 100 set of parameters using a multivariate normal (kept at 100 for the vignette, use more replicates for a real project). Also, unless the model was written in a way to allow unconstrained parameter values, care should be taken to make sure the simulated parameters are valid and make sense. In a real modeling applications, the software used to fit the model will provide a variance covariance matrix, if possible. Otherwise, the user can rely on set of parameters generated from bootstrap replicates or SIR run.   
 
 **Variance Covariance Matrix of fixed effects:**
 ```{r, fig.width=7}
@@ -339,9 +360,13 @@ theta[c("WT", "SEX", "ALB")] <- NULL
 theta <- unlist(theta)
 as.data.frame(t(theta))
 
+#note that from RsNLME or NONMEM or Monolix the software will give you the varcov just read it it in.
+# example NONMEM  read in your run .cov
+# varcov <- read.csv(paste("runxyz",".cov",sep=""), header=TRUE, skip=1, sep="")
+
 varcov <- cor2cov(
   matrix(0.2, nrow=length(theta), ncol=length(theta)),
-  sd=theta*0.15)
+  sd=theta*0.25)
 rownames(varcov) <- colnames(varcov) <- names(theta)
 as.data.frame(varcov)
 ```
@@ -353,6 +378,7 @@ Second, we generate the sim_parameters dataset using `mvrnorm` and then incorpor
 ```{r, fig.width=7}
 set.seed(678549)
 # mvtnorm::rmvnorm is another option that can be explored
+# if you have run a bootstrap just use the parameters data generated using all replicates
 sim_parameters <- MASS::mvrnorm(nsim, theta, varcov, empirical=T) %>% as.data.table
 head(sim_parameters)
 ```
@@ -360,7 +386,7 @@ head(sim_parameters)
 ### Iterative Simulations to Apply the Uncertainty
 Third, we illustrate how you can iterate over a set of parameters value using a `for` loop. We then overlay the previous simulation results without uncertainty on the one with uncertainty to visualize the effect of adding it. 
 
-```{r, fig.width=7,fig.height=4, fig.height=5}
+```{r, fig.width=8.5, fig.height=7, ,message=FALSE}
 idata <- data.table::copy(covcomb)
 idata$covname <-  NULL
 ev1       <- ev(time=0, amt=100, cmt=1)
@@ -389,37 +415,24 @@ summary_conc <- function(CP) {
   data.table(paramname=names(x), paramvalue=x)
 }
 
-# pkprofileuncertainty <- ggplot(iter_sims, aes(x=time, y=CP, col=factor(WT), linetype=SEX)) +
-#   geom_line(aes(group=interaction(ID, rep)), alpha=0.1, size=0.1) +
-#   geom_line(data = outcovcomb, aes(group=interaction(ID)),
-#             alpha= 1, size=0.7, colour = "black") +
-#   facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value, WT = label_both),
-#              switch = "y") +
-#   labs(
-#     x        = "Time (h)",
-#     y        = "Plasma Concentrations",
-#     linetype = "Sex",
-#     colour   = "Uncertainty\nReplicates\nWeight",
-#     caption  = "Simulation with Uncertainty, without BSV") +
-#   coord_cartesian(ylim=c(0,3.5))+
-#   guides(colour = guide_legend(override.aes = list(alpha = 1)))+
-#   theme_bw(base_size = 13)+
-#   theme(axis.title.y = element_text(size=15))+
-#   guides(colour=guide_legend(override.aes = list(alpha=1,size=0.5)),
-#          linetype=guide_legend(override.aes = list(size=0.5)))+
-#   coord_cartesian(ylim=c(0,4))
-
 iter_sims_sum <- iter_sims[, summary_conc(CP), by=.( time, WT, SEX, ALB)]
 iter_sims_sum <- spread(iter_sims_sum,paramname,paramvalue)
 iter_sims_sum <- as.data.frame(iter_sims_sum)
 
+albumin.labs <- c("albumin: 40 ng/mL","albumin: 45 ng/mL","albumin: 50 ng/mL")
+names(albumin.labs) <- c("40","45","50")
+wt.labs <- c("weight: 56 kg","weight: 72 kg","weight: 85 kg","weight: 98 kg","weight: 128 kg")
+names(wt.labs) <- c("56","72","85","98","128")
+
 pkprofileuncertainty_sum <- ggplot(iter_sims_sum, aes(x=time, col=factor(WT),
                       fill=factor(WT),
                       linetype=SEX)) +
-  geom_ribbon((aes(ymin= `Clow.5%` ,ymax=`Cup.95%`)), alpha=0.4,linetype=0)+
-  geom_line(aes(y=Cmed),alpha=1 , color ="black")+
-  facet_grid(ALB +SEX ~ WT, labeller= labeller(ALB = label_both, SEX = label_value,
-                                               WT = label_both),switch = "y") +
+  geom_ribbon((aes(ymin= `Clow.5%` ,ymax=`Cup.95%`)), alpha = 0.4, linetype = 0)+
+  geom_line(aes(y=Cmed),alpha=1 , color ="black" , linewidth = 1)+
+  facet_nested(ALB +SEX ~ WT,
+             labeller= labeller(ALB = albumin.labs,
+                                WT = wt.labs,
+                                SEX = label_value),switch = "y") +
   labs(
     x        = "Time (h)",
     y        = "Plasma Concentrations",
@@ -429,9 +442,8 @@ pkprofileuncertainty_sum <- ggplot(iter_sims_sum, aes(x=time, col=factor(WT),
     caption  = "Simulation with Uncertainty, without BSV") +
   theme_bw(base_size = 13)+
   theme(axis.title.y = element_text(size=15))+
-  guides(colour=guide_legend(override.aes = list(alpha=0.4,size=0.4)),
-         fill=guide_legend(override.aes = list(alpha=0.4,size=0.4)),
-         linetype=guide_legend(override.aes = list(size=0.5)))+
+  guides(fill     = guide_legend(override.aes = list(alpha = 0.4, size = 0.4)),
+         linetype = guide_legend(override.aes = list(linewidth = 1), order = 1))+
   coord_cartesian(ylim=c(0,4))
 
 pkprofileuncertainty_sum
@@ -565,7 +577,9 @@ ggplot(out.df.univariatecov.nca[out.df.univariatecov.nca$covname!="REF",], aes(
   geom_vline(aes(xintercept=1), size=1) +
   theme_bw() +
   labs(x="Effects Relative to Parameter Reference Value", y="")+
-  scale_x_continuous(breaks=c(0.25,0.5,0.8,1/0.8,1/0.5,1/0.25),trans ="log" )
+  scale_x_continuous(breaks=c(0.25,0.5,0.8,1,1/0.8,1/0.5,1/0.25),
+                     labels=c("1/4","1/2","0.8","1","1.25","2","4"),
+                     trans ="log" )
 ```
 
 ## Adding the BSV Ranges and Putting it all Together Using `forest_plot`
@@ -641,7 +655,8 @@ coveffectsplot::forest_plot(fpdata[paramname=="AUC" &
                             plot_table_ratio       = 3,
                             show_table_facet_strip = "none",
                             logxscale              = TRUE,
-                            major_x_ticks          = c(0.5, 0.8, 1/0.8, 1/0.5),
+                            major_x_ticks          = c(0.5, 0.8,1, 1/0.8, 1/0.5),
+                            major_x_labels         = c("1/2", "0.8","1", "1.25", "2"),
                             return_list            = FALSE)
 dev.off()
 ```
@@ -680,7 +695,8 @@ coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             plot_table_ratio = 3,
                             show_table_facet_strip = "none",
                             logxscale = TRUE,
-                            major_x_ticks =    c(0.25,0.5,0.8,1/0.8,1/0.5,1/0.25),
+                            major_x_ticks =    c(0.25,0.5,0.8,1,1/0.8,1/0.5,1/0.25),
+                            major_x_labels = c("1/4","1/2","0.8","1","1.25","2","4"),
                             return_list = FALSE)
 dev.off()
 ```
@@ -690,7 +706,7 @@ dev.off()
 You can get the underlying ggplots as a list for further editing by setting `return_list = TRUE` and saving it into an object. The list will contain two objects the first being the main plot and the second the table. We illustrate how you can modify the look of the plots using regular ggplot code that modify the facet text color to `gray` and italic. Finally we recombine the plots using `egg::ggarrange`.
 
 ```{r,message=FALSE,fig.width=7}
-png("./coveffectsplot0.png",width =9 ,height = 6,units = "in",res=72)
+png("./coveffectsplot0.png",width = 9 ,height = 6,units = "in",res=72)
 plotlists <- coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             ref_area = c(0.8, 1/0.8),
                             xlabel = "Fold Change Relative to Reference",
@@ -711,7 +727,8 @@ plotlists <- coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             plot_table_ratio = 4,
                             show_table_facet_strip = "none",
                             logxscale = TRUE,
-                            major_x_ticks = c(0.25,0.5,0.8,1/0.8,1/0.5,1/0.25),
+                            major_x_ticks = c(0.25,0.5,0.8,1,1/0.8,1/0.5,1/0.25),
+                            major_x_labels = c("1/4","1/2","0.8","1","1.25","2","4"),
                             return_list = TRUE)
 plotlists
 dev.off()
@@ -793,7 +810,8 @@ forest_plot(fpdata,
                             plot_table_ratio = 4,
                             show_table_facet_strip = "none",
                             logxscale = TRUE,
-                            major_x_ticks = c(0.5,0.8,1/0.8,1/0.5),
+                            major_x_ticks = c(0.5,0.8,1,1/0.8,1/0.5),
+                            major_x_labels = c("1/2","0.8","1","1.25","2"),
                             x_label_text_size = 10,
                             return_list = FALSE)
 dev.off()
@@ -830,7 +848,8 @@ forest_plot(fpdata[paramname!="AUC"],
                             plot_table_ratio = 4,
                             show_table_facet_strip = "none",
                             logxscale = TRUE,
-                            major_x_ticks = c(0.5,0.8,1/0.8,1/0.5),
+                            major_x_ticks = c(0.5,0.8,1,1/0.8,1/0.5),
+                            major_x_labels = c("1/2","0.8","1","1.25","2"),
                             legend_space_x_mult = 0.01,
                             legend_position = "right",
                             return_list = FALSE)
@@ -865,7 +884,8 @@ forest_plot(fpdata[paramname!="AUC" &
                             table_position = "none",
                             base_size = 12,
                             logxscale = TRUE,
-                            major_x_ticks = c(0.5,0.8,1/0.8,1/0.5),
+                            major_x_ticks = c(0.5,0.8,1,1/0.8,1/0.5),
+                            major_x_labels = c("1/2","0.8","1","1.25","2"),
                             legend_space_x_mult = 0.01,
                             legend_position = "right",
                             return_list = TRUE)[[1]]+

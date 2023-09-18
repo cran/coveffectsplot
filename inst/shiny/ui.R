@@ -112,7 +112,8 @@ fluidPage(
                                selected = c("free_y"),
                                multiple = FALSE),
                  selectInput('facetspace' ,'Facet Spaces:',
-                             c("fixed","free_x","free_y","free") )
+                             c("fixed","free_x","free_y","free") ,
+                             selected = c("free_y"))
         ),
         tabPanel(
           "X/Y Axes",
@@ -129,8 +130,17 @@ fluidPage(
             condition = "input.customxticks" ,
             textInput("xaxisbreaks",label ="X axis major Breaks",
                       value = as.character(paste(
-                        0,0.25,0.5,0.8,1,1.25,1.5,1.75,2
+                        0,0.25,0.5,0.8,1,1.25,1.5,2
                         ,sep=",") )
+            ),
+            checkboxInput('customxlabels', 'Custom X axis Labels ?', value = FALSE),
+            conditionalPanel(
+              condition = "input.customxticks & input.customxlabels" ,
+              textInput("xaxislabels",label ="X axis major Labels",
+                        value = as.character(paste(
+                          "0","1/4","1/2","0.8","1","1.25","1.5","2"
+                          ,sep=",") )
+              )
             ),
             textInput("xaxisminorbreaks",label ="X axis minor Breaks",
                       value = as.character(paste(
@@ -239,23 +249,65 @@ fluidPage(
                                     showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           div( actionButton("stripbackfillreset", "Reset Strip Background Fill"),
                style="text-align: right"),
+          colourpicker::colourInput("y_facet_text_col",
+                                    "Facet Text Color Y:",
+                                    value="black",
+                                    showColour = "both",allowTransparent=TRUE, returnName = TRUE),
+          colourpicker::colourInput("x_facet_text_col",
+                                    "Facet Text Color X:",
+                                    value="black",
+                                    showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           checkboxInput('removestrip', "Show Strip Background",value = TRUE),
+          conditionalPanel(condition = "!input.colourbyparamname",
           colourpicker::colourInput("colourpointrange",
                                     "Point Range Colour:",
                                     value="blue",
                                     showColour = "both",allowTransparent=TRUE, returnName = TRUE),
           div( actionButton("colourpointrangereset", "Reset Point Range Colour"),
-               style="text-align: right"),
+               style="text-align: right")
+          ),
+          conditionalPanel(condition = "!input.colourbyparamname",
+                           colourpicker::colourInput("colourbsvrange",
+                                                     "BSV Range Colour:",
+                                                     value="red",
+                                                     showColour = "both",allowTransparent=TRUE, returnName = TRUE),
+                           div( actionButton("colourbsvrangereset", "Reset BSV Range Colour"),
+                                style="text-align: right")
+          ),
+          conditionalPanel(condition = "!input.shapebyparamname", 
+                           selectInput(inputId = "shapepointrange",
+                                       label = "Point Range Shape:",
+                                       choices = c("circle small", "triangle" ,"square","plus","square cross","asterisk",
+                                                   "square open","cross","diamond open","triangle down open","square cross",
+                                                   "diamond plus","circle plus","star","star","square plus","circle cross",
+                                                   "square triangle","diamond","circle","bullet",
+                                                   "circle filled","square filled","diamond filled","triangle filled",
+                                                   "triangle down filled"),
+                                       selected = "circle small"
+                           ) 
+          ),
+          conditionalPanel(condition = "!input.shapebyparamname", 
+                           selectInput(inputId = "shapebsvrange",
+                                       label = "BSV Range Shape:",
+                                       choices = c("circle small", "triangle" ,"square","plus","square cross","asterisk",
+                                                   "square open","cross","diamond open","triangle down open","square cross",
+                                                   "diamond plus","circle plus","star","star","square plus","circle cross",
+                                                   "square triangle","diamond","circle","bullet",
+                                                   "circle filled","square filled","diamond filled","triangle filled",
+                                                   "triangle down filled"),
+                                       selected = "circle small"
+                           ) 
+          ),
+          conditionalPanel(condition = "input.colourbyparamname",uiOutput('userdefinedcolorui')
+          ),
+          conditionalPanel(condition = "input.shapebyparamname",uiOutput('userdefinedshapeui')
+          ),
           sliderInput("sizepointrange", "Point range size",
                       min = 0, max = 10, step = 0.1, value = 1),
           sliderInput("fattenpointrange", "Point range fatten",
                       min = 0, max = 10, step = 0.1, value = 4),
-          colourpicker::colourInput("colourbsvrange",
-                                    "BSV Range Colour:",
-                                    value="red",
-                                    showColour = "both",allowTransparent=TRUE, returnName = TRUE),
-          div( actionButton("colourbsvrangereset", "Reset BSV Range Colour"),
-               style="text-align: right"),
+          sliderInput("linewidthpointrange", "Point range linewidth",
+                      min = 0, max = 10, step = 0.1, value = 1),
           sliderInput("base_size", "Base size for the theme",
                       min = 1, max = 30, step = 0.1, value = 22),
           sliderInput("height", "Plot Height", min=1080/4, max=1080,
@@ -294,6 +346,8 @@ fluidPage(
             )),
           checkboxInput('legendshapereverse',
                         'Reverse the order of shape legend items ?',value = TRUE),
+          checkboxInput('legendcoloreverse',
+                        'Reverse the order of colour legend items ?',value = FALSE),
           sliderInput("legendspacex", "Multiplier for Space between Legends",
                       min = 0, max = 1.5, step = 0.1, value = 1),
           numericInput("panelspacing",label = "Strip Panel Spacing",
@@ -339,9 +393,13 @@ fluidPage(
         ),#tabpanel
         tabPanel(
           "Custom Legend Text",
-          textInput("customplottitle", label ="Plot Title",value = " \\n"),
+          textInput("customplottitle", label ="Plot Title",value = ""),
           textInput("customcolourtitle", label ="Pointinterval Legend text",
                     value="Median (points)\\n95% CI (horizontal lines)"),
+          textInput("customcolourtitletext", label ="Pointinterval Legend title",
+                    value=""),
+          textInput("customshapetitletext", label ="Shape Legend title",
+                    value=""),
           textInput("custombsvtitle", label ="BSV Legend text",
                     value="BSV (points)\\nPrediction Intervals (horizontal lines)"),
           textInput("customlinetypetitle", label ="Ref Legend text",
@@ -351,7 +409,10 @@ fluidPage(
           checkboxInput('combineareareflegend',
                         'Combine Ref and Area Legends if they share the same text ?',value = TRUE),
           checkboxInput('combineintervalshapelegend',
-                        'Combine Interval and Shape Legends?',value = TRUE)
+                        'Combine Interval and Shape Legends?',value = TRUE),
+          sliderInput("legendtitlesize", "Text size of legend(s) title(s) ",
+                      min=1, max=32, value= 16, step=0.5)
+          
         )#tabpanel
       )  # tabsetpanel
     ) # closes the column 3

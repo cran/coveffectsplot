@@ -11,11 +11,14 @@ suppressPackageStartupMessages({
   library(colourpicker)
   library(grid)
   library(shinymeta)
+  library(glue)
+  library(rlang)
 })
 
 escape_newline <- function(s) {
   gsub("\\\\n", "\\\n", s)
 }
+
 
 round_pad <- function(x, digits = 2, round5up = TRUE) {
   eps <- if (round5up) x * (10^(-(digits + 3))) else 0
@@ -57,3 +60,11 @@ label_wrap <- function(width) {
   }
 }
 ###from scales
+pch_table <- c(`square open` = 0, `circle open` = 1, `triangle open` = 2, 
+               plus = 3, cross = 4, `diamond open` = 5, `triangle down open` = 6, 
+               `square cross` = 7, asterisk = 8, `diamond plus` = 9, 
+               `circle plus` = 10, star = 11, `square plus` = 12, `circle cross` = 13, 
+               `square triangle` = 14, `triangle square` = 14, square = 15, 
+               `circle small` = 16, triangle = 17, diamond = 18, circle = 19, 
+               bullet = 20, `circle filled` = 21, `square filled` = 22, 
+               `diamond filled` = 23, `triangle filled` = 24, `triangle down filled` = 25)
