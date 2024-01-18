@@ -1,6 +1,6 @@
 Package: coveffectsplot
 Title: Produce Forest Plots to Visualize Covariate Effects
-Version: 1.0.4
+Version: 1.0.5
 Authors@R: c(
     person("Samer", "Mouksassi", email = "samermouksassi@gmail.com",
       role = c("aut", "cre"),comment = c(ORCID = "https://orcid.org/0000-0002-7152-6654")),
@@ -25,13 +25,13 @@ License: MIT + file LICENSE
 SystemRequirements: pandoc with https support
 LazyData: true
 VignetteBuilder: knitr
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.0
 Encoding: UTF-8
 NeedsCompilation: no
-Packaged: 2023-09-18 08:51:27 UTC; smouksas
+Packaged: 2024-01-18 13:22:05 UTC; smouksas
 Author: Samer Mouksassi [aut, cre] (<https://orcid.org/0000-0002-7152-6654>),
   Benjamin Rich [aut],
   Dean Attali [ctb]
 Maintainer: Samer Mouksassi <samermouksassi@gmail.com>
 Repository: CRAN
-Date/Publication: 2023-09-18 12:40:16 UTC
+Date/Publication: 2024-01-18 14:10:02 UTC

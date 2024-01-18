@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   dev = "png",
   collapse = TRUE,
@@ -285,7 +285,7 @@ ggpairsplot + theme_bw(base_size = 12) +
 
 
 
-## ---- fig.width=7 ,message=FALSE, fig.height=5--------------------------------
+## ----fig.width=7 ,message=FALSE, fig.height=5---------------------------------
 idata <- data.table::copy(covdatasim)
 idata$covname <-  NULL
 ev1 <- ev(time=0, amt=100, cmt=1)
@@ -349,7 +349,7 @@ plotranges<- ggplot(outcovcomb, aes(time,CP,col=SEX,fill=SEX ) )+
 plotranges
 
 
-## ---- fig.width=7-------------------------------------------------------------
+## ----fig.width=7--------------------------------------------------------------
 theta <- unclass(as.list(param(modcovsim)))
 theta[c("WT", "SEX", "ALB")] <- NULL
 theta <- unlist(theta)
@@ -361,13 +361,13 @@ varcov <- cor2cov(
 rownames(varcov) <- colnames(varcov) <- names(theta)
 as.data.frame(varcov)
 
-## ---- fig.width=7-------------------------------------------------------------
+## ----fig.width=7--------------------------------------------------------------
 set.seed(678549)
 # mvtnorm::rmvnorm is another option that can be explored
 sim_parameters <- MASS::mvrnorm(nsim, theta, varcov, empirical=T) %>% as.data.table
 head(sim_parameters)
 
-## ---- fig.width=7,fig.height=4, fig.height=5----------------------------------
+## ----fig.width=7,fig.height=4, fig.height=5-----------------------------------
 idata <- copy(covdatasim)
 ev1       <- ev(time=0, amt=100, cmt=1)
 data.dose <- as.data.frame(ev1)
@@ -428,14 +428,14 @@ plotrangesunc+
   coord_cartesian(ylim=c(0,4))
 
 
-## ---- fig.width=7, include=TRUE, message=FALSE--------------------------------
+## ----fig.width=7, include=TRUE, message=FALSE---------------------------------
 out.df.parameters <- iter_sims[, derive.exposure(time, CP),
                                     by=.(rep, ID, WT, SEX, ALB)]
 
 refvalues <- out.df.parameters[,.(medparam = median(paramvalue)), by=.(paramname,rep)]
 
 
-## ---- fig.width=7,fig.height=5 ,message=FALSE---------------------------------
+## ----fig.width=7,fig.height=5 ,message=FALSE----------------------------------
 
 setkey(out.df.parameters, paramname, rep)
 out.df.parameters <- merge(out.df.parameters,refvalues)
@@ -498,7 +498,7 @@ boxplotMV<- ggplot(nca.summaries.long
   scale_y_continuous(breaks = scales::pretty_breaks(n=4)  )
 boxplotMV
 
-## ---- fig.width=7, fig.height=4 ,message=FALSE--------------------------------
+## ----fig.width=7, fig.height=4 ,message=FALSE---------------------------------
 ggridgesplot<- ggplot(nca.summaries.long,
                       aes(x=paramvaluestd,y=covvalue,
                           fill=factor(..quantile..),
@@ -529,7 +529,7 @@ ggridgesplot<- ggplot(nca.summaries.long,
 ggridgesplot
 
 
-## ---- fig.width=7, fig.height=6-----------------------------------------------
+## ----fig.width=7, fig.height=6------------------------------------------------
 coveffectsdatacovrep <- nca.summaries.long %>% 
   dplyr::group_by(paramname,covname,covvalue) %>% 
   dplyr::summarize(

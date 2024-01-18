@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   message =FALSE,
@@ -266,7 +266,7 @@ simoutbsvranges <- simoutbsvlong %>%
 simoutbsvranges
 pbsvranges
 
-## ---- collapse=TRUE-----------------------------------------------------------
+## ----collapse=TRUE------------------------------------------------------------
 set.seed(678549)
 thmeans <- c(10,0.75, #TVCL WTCL
              5,3, # TVEMAX  SEVEMAX
@@ -315,7 +315,7 @@ for(i in 1:nsim) {
   iter_sims <- rbind(iter_sims,dfsimunc)
 }
 
-## ---- collapse=TRUE-----------------------------------------------------------
+## ----collapse=TRUE------------------------------------------------------------
 
 wt.labs <- c("weight: 50 kg","weight: 60 kg","weight: 70 kg","weight: 80 kg","weight: 90 kg","(all)")
 names(wt.labs) <- c("50","60","70","80","90","(all)")
@@ -333,7 +333,7 @@ stdprobplot<- ggplot(iter_sims, aes(DOSE,P1,col=factor(SEV) ) )+
   labs(y="Probability of Response", colour="Severity")
 stdprobplot
 
-## ---- fig.height= 7, collapse=TRUE--------------------------------------------
+## ----fig.height= 7, collapse=TRUE---------------------------------------------
 iter_sims <- iter_sims %>%
   mutate(P1std=P1/TypicalProb)%>%
   gather(paramname,paramvalue,P1std)%>% 

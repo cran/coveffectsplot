@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   dev = "png",
   collapse = TRUE,
@@ -270,7 +270,7 @@ covcomb$ID <- 1:nrow(covcomb)
 
 covcomb
 
-## ---- fig.width=8.5, fig.height=7, ,message=FALSE-----------------------------
+## ----fig.width=8.5, fig.height=7, ,message=FALSE------------------------------
 idata <- data.table::copy(covcomb)
 idata$covname <-  NULL
 ev1 <- ev(time=0, amt=100, cmt=1)
@@ -312,7 +312,7 @@ pkprofiletypical <- pkprofiletypical +theme_bw(base_size = 13)+
 pkprofiletypical
 
 
-## ---- fig.width=7-------------------------------------------------------------
+## ----fig.width=7--------------------------------------------------------------
 theta <- unclass(as.list(param(modcovsim)))
 theta[c("WT", "SEX", "ALB")] <- NULL
 theta <- unlist(theta)
@@ -328,14 +328,14 @@ varcov <- cor2cov(
 rownames(varcov) <- colnames(varcov) <- names(theta)
 as.data.frame(varcov)
 
-## ---- fig.width=7-------------------------------------------------------------
+## ----fig.width=7--------------------------------------------------------------
 set.seed(678549)
 # mvtnorm::rmvnorm is another option that can be explored
 # if you have run a bootstrap just use the parameters data generated using all replicates
 sim_parameters <- MASS::mvrnorm(nsim, theta, varcov, empirical=T) %>% as.data.table
 head(sim_parameters)
 
-## ---- fig.width=8.5, fig.height=7, ,message=FALSE-----------------------------
+## ----fig.width=8.5, fig.height=7, ,message=FALSE------------------------------
 idata <- data.table::copy(covcomb)
 idata$covname <-  NULL
 ev1       <- ev(time=0, amt=100, cmt=1)
@@ -398,7 +398,7 @@ pkprofileuncertainty_sum <- ggplot(iter_sims_sum, aes(x=time, col=factor(WT),
 pkprofileuncertainty_sum
 
 
-## ---- fig.width=7, include=TRUE, message=FALSE--------------------------------
+## ----fig.width=7, include=TRUE, message=FALSE---------------------------------
 out.df.univariatecov.nca <- iter_sims[, derive.exposure(time, CP), by=.(rep, ID, WT, SEX, ALB)]
 
 refvalues <- out.df.univariatecov.nca[
@@ -407,7 +407,7 @@ refvalues <- out.df.univariatecov.nca[
 head(data.frame(refvalues))
 
 
-## ---- fig.width=7,fig.height=5 ,message=FALSE---------------------------------
+## ----fig.width=7,fig.height=5 ,message=FALSE----------------------------------
 covcomb$covvalue[covcomb$covname=="WT"] <- paste(covcomb$WT[covcomb$covname=="WT"],"kg")
 covcomb$covvalue[covcomb$covname=="ALB"] <- paste(covcomb$ALB[covcomb$covname=="ALB"],"g/L")                   
 covcomb$covvalue[covcomb$covname=="SEX"] <- "Male"
@@ -470,7 +470,7 @@ pkparametersboxplot<- ggplot(boxplotdat, aes(x=covvalue, y=paramvalue))+
         strip.placement = "outside")
 pkparametersboxplot
 
-## ---- fig.width=7, fig.height=4 ,message=FALSE--------------------------------
+## ----fig.width=7, fig.height=4 ,message=FALSE---------------------------------
 out.df.univariatecov.nca[covname=="WT",      covname2 := "Weight"]
 out.df.univariatecov.nca[covname=="ALB",     covname2 := "Albumin"]
 out.df.univariatecov.nca[covname=="SEX",     covname2 := "Sex"]
@@ -508,7 +508,7 @@ ggplot(out.df.univariatecov.nca[out.df.univariatecov.nca$covname!="REF",], aes(
     quantiles      = c(0.05,0.5, 0.95)) +
   scale_x_continuous(
     breaks = c(0.25, 0.5, 0.8, 1/0.8, 1/0.5, 1/0.25),
-    tran   = "log") +
+    trans  = "log") +
   scale_fill_manual(
     name   = "Probability",
     values = c("white", "#0000FFA0", "#0000FFA0", "white"),
@@ -520,7 +520,7 @@ ggplot(out.df.univariatecov.nca[out.df.univariatecov.nca$covname!="REF",], aes(
                      labels=c("1/4","1/2","0.8","1","1.25","2","4"),
                      trans ="log" )
 
-## ---- fig.width=7, fig.height=6-----------------------------------------------
+## ----fig.width=7, fig.height=6------------------------------------------------
 fpdata <- out.df.univariatecov.nca[,
   setNames(as.list(quantile(paramvaluestd, probs=c(0.5, 0.05, 0.95))), c("mid", "lower", "upper")),
   by=.(paramname2, covname2, covvalue)]
@@ -654,7 +654,7 @@ plotlists <- coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
 plotlists
 dev.off()
 
-## ---- fig.width=7, fig.height=6, warning=FALSE,message=FALSE------------------
+## ----fig.width=7, fig.height=6, warning=FALSE,message=FALSE-------------------
 main_plot <- plotlists[[1]] + theme(
                panel.spacing=unit(10, "pt"),
                panel.grid=element_blank(),
@@ -700,7 +700,7 @@ egg::ggarrange(
 )
 dev.off()
 
-## ---- fig.width=7, fig.height=6,message=FALSE---------------------------------
+## ----fig.width=7, fig.height=6,message=FALSE----------------------------------
 png("./coveffectsplot6.png",width =9.5 ,height = 6,units = "in",res=72)
 forest_plot(fpdata,
                             ref_area = c(0.8, 1/0.8),
@@ -726,7 +726,7 @@ forest_plot(fpdata,
                             return_list = FALSE)
 dev.off()
 
-## ---- fig.width=7, fig.height=6,message=FALSE---------------------------------
+## ----fig.width=7, fig.height=6,message=FALSE----------------------------------
 png("./coveffectsplot7.png",width =9.5 ,height = 6,units = "in",res=72)
 forest_plot(fpdata[paramname!="AUC"],
                             ref_area = c(0.8, 1/0.8),
@@ -758,7 +758,7 @@ forest_plot(fpdata[paramname!="AUC"],
                             return_list = FALSE)
 dev.off()
 
-## ---- fig.width=7, fig.height=6,message=FALSE---------------------------------
+## ----fig.width=7, fig.height=6,message=FALSE----------------------------------
 png("./coveffectsplot_color.png",width =9.5 ,height = 6,units = "in",res=72)
 forest_plot(fpdata[paramname!="AUC" &
                      covname!="BSV"&

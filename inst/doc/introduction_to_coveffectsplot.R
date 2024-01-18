@@ -19,7 +19,7 @@ nuncertainty <- 10000
 nbsvsubjects <- 100000
 
 
-## ---- echo=TRUE, results='asis',fig.align = "center",fig.width = 6------------
+## ----echo=TRUE, results='asis',fig.align = "center",fig.width = 6-------------
 set.seed(657687)
 df <- data.frame(
 MASS::mvrnorm(n = nuncertainty,
@@ -31,7 +31,7 @@ MASS::mvrnorm(n = nuncertainty,
 names(df) <- c("POPCL","dWTdCL","dSexdCL")
 knitr::kable(head(round(df,2),5))
 
-## ---- echo=FALSE, results='asis',fig.align = "center",fig.width = 6-----------
+## ----echo=FALSE, results='asis',fig.align = "center",fig.width = 6------------
 dflong <- gather(df)
 
 ggplot(dflong,aes(x=value))+
@@ -68,12 +68,12 @@ dfcovlongquantile$quantile<- rownames(dfcovlongquantile)
 dfcovlongquantiletable<- t(dfcovlongquantile)
 knitr::kable(dfcovlongquantiletable[1,,drop=FALSE],row.names=FALSE)
 
-## ---- echo=TRUE,fig.align = "center",fig.width = 6----------------------------
+## ----echo=TRUE,fig.align = "center",fig.width = 6-----------------------------
 set.seed(546789)
 CLBSVdistribution <- data.frame(CL= 10*exp(rnorm(nbsvsubjects,0,sd=0.09^0.5)))
 CLBSVdistribution$CLBSV<- CLBSVdistribution$CL/10
 
-## ---- echo=FALSE,fig.align = "center",fig.width = 6 ,fig.height=4-------------
+## ----echo=FALSE,fig.align = "center",fig.width = 6 ,fig.height=4--------------
 dfbsv<- as.data.frame(
   round( quantile(CLBSVdistribution$CLBSV,probs=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)),2))
 names(dfbsv)<- "BSVquantilevalue"

@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   message =FALSE,
@@ -195,7 +195,7 @@ covcomb$ID <- 1:nrow(covcomb)
 
 covcomb
 
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
+## ----fig.width=7 ,message=FALSE, include=FALSE--------------------------------
 idata <- data.table::copy(covcomb)
 idata$covname <-  NULL
 ev1 <- ev(time=0, amt=100, cmt=1, ii = 24, addl = 20)
@@ -252,7 +252,7 @@ iter_sims$SEX <- as.factor(iter_sims$SEX )
 iter_sims$SEX <- factor(iter_sims$SEX, labels=c("Female", "Male"))
 
 
-## ---- fig.width=7, fig.height=6, message=FALSE, warning=FALSE-----------------
+## ----fig.width=7, fig.height=6, message=FALSE, warning=FALSE------------------
 albumin.labs <- c("albumin: 40 ng/mL","albumin: 45 ng/mL","albumin: 50 ng/mL")
 names(albumin.labs) <- c("40","45","50")
 wt.labs <- c("weight: 85 kg","weight: 56 kg","weight: 128 kg")
@@ -276,7 +276,7 @@ pdprofiles <- ggplot(iter_sims[iter_sims$rep<=10,], aes(time/24,PDRESP,col=facto
 
 pdprofiles
 
-## ---- fig.width=7,fig.height=6, include=FALSE, message=FALSE------------------
+## ----fig.width=7,fig.height=6, include=FALSE, message=FALSE-------------------
 
 out.df.univariatecov.nca <- iter_sims[, derive.exposure(time, PDRESP),
                                       by=.(rep, ID, WT, SEX, ALB, AGE, HEALTHY)]
@@ -335,7 +335,7 @@ boxplotdat[covname=="HEALTHY", covname2 := "Healthy"]
 boxplotdat[covname=="REF", covname2 := "Reference"]
 
 
-## ---- fig.width=7, fig.height=5, message=FALSE--------------------------------
+## ----fig.width=7, fig.height=5, message=FALSE---------------------------------
 boxplotpd <- ggplot(boxplotdat,
        aes(x=covvalue ,y=paramvalue))+
   facet_grid(paramname ~covname2,scales="free",switch="both",
@@ -345,7 +345,7 @@ boxplotpd <- ggplot(boxplotdat,
   labs(y="PD Parameter Values",x="Covariate Value")
 boxplotpd
 
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
+## ----fig.width=7 ,message=FALSE, include=FALSE--------------------------------
 #  pdprofiles<- pdprofiles+theme(axis.title.y = element_text(size=15))+
 #    guides(colour=guide_legend(override.aes = list(alpha=1,size=0.5)),
 #           linetype=guide_legend(override.aes = list(size=0.5)))
@@ -357,7 +357,7 @@ boxplotpd
 #  egg::ggarrange(pdprofiles,boxplotpd,nrow=1)
 #  dev.off()
 
-## ---- fig.width=7,fig.height=5,message=FALSE----------------------------------
+## ----fig.width=7,fig.height=5,message=FALSE-----------------------------------
 pdggridges<- ggplot(out.df.univariatecov.nca,
        aes(x=paramvaluestd,y=covvalue,fill=factor(..quantile..),height=..ndensity..))+
   facet_grid(covname2~paramname,scales="free_y",space="free")+
@@ -383,13 +383,13 @@ pdggridges<- ggplot(out.df.univariatecov.nca,
   scale_x_log10()
 pdggridges
 
-## ---- fig.width=7 ,message=FALSE, include=FALSE-------------------------------
+## ----fig.width=7 ,message=FALSE, include=FALSE--------------------------------
 # pdggridges+theme(legend.position = "none")
 #  ggsave("Figure_S_PD_3.png", device="png",type="cairo-png",
 #         width= 7, height = 5,dpi=72)
 
 
-## ---- fig.width=7, fig.height=7 ,message=FALSE--------------------------------
+## ----fig.width=7, fig.height=7 ,message=FALSE---------------------------------
 coveffectsdatacovrep <- out.df.univariatecov.nca %>% 
   dplyr::group_by(paramname,covname,covvalue) %>% 
   dplyr::summarize(
@@ -405,7 +405,7 @@ coveffectsdatacovreplabel<-   coveffectsdatacovrep %>%
                    format(round(upper,2), nsmall = 2), "]"))
 
 
-## ---- fig.width=7, fig.height=7 ,message=FALSE--------------------------------
+## ----fig.width=7, fig.height=7 ,message=FALSE---------------------------------
 setkey(bsvranges, paramname)
 coveffectsdatacovrepbsv <- coveffectsdatacovrep[coveffectsdatacovrep$covname=="REF",]
 coveffectsdatacovrepbsv$covname <- "BSV"
