@@ -46,7 +46,8 @@ expit <- function(x) exp(x)/ (1 + exp(x) )
 TypicalProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*75/10/(7.5+75/10)))))
 MaxProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*750/10/(7.5+750/10)))))
 MinProb<- 1/(1+exp(-(log(0.1/(1-0.1)) + (5*0/10/(7.5+0/10)))))
-
+#
+# R::runif(0,1)< P1 ? 1 : 0
 exprespmodel <- '
 $PLUGIN Rcpp
 $PARAM @annotated
@@ -92,6 +93,7 @@ simout <- modexprespsim %>%
   mrgsim()%>%
   as.data.frame
 
+
 ## ----exprespmodeplotl, collapse=TRUE, fig.height= 7, fig.width= 9-------------
 WT_names <- c(
   '70'="Weight: 70 kg"
@@ -125,8 +127,6 @@ simoutdataprobs <- simout %>%
             n1= length(DV[DV==1]),
             medAUC= median(AUC))
 
-
-
 percentineachbreakcategory <- simout %>% 
   mutate(AUC_bins=table1::eqcut(AUC,4,withhold = list(PLACEBO=AUC==0))) %>% 
   group_by(DOSE) %>% 
@@ -135,8 +135,6 @@ percentineachbreakcategory <- simout %>%
   mutate(Ncat=n(),xmed=median(AUC))%>% 
   mutate(percentage=Ncat/Ntot)%>% 
   distinct(DOSE,xmed,AUC_bins,percentage,WT,SEV)
-
-
 
 probplot <- ggplot(simout, aes(AUC,DV,linetype=factor(SEV_cat))) +
   facet_grid( WT~SEV,labeller=labeller(WT=WT_names,SEV=SEV_names))+
@@ -197,12 +195,13 @@ egg::ggarrange(
   (exposureplot +
   theme(plot.margin = unit(c(0,0,0,0), "cm") )) ,heights = c(1,0.5))
    
- 
-
-
 
 ## ----bsvrangeplot, collapse=TRUE----------------------------------------------
-
+set.seed(466548)
+simdata <-  expand.idata(SEV=c(0),
+               DOSE = c(0,75),
+               ID = 1:10000) %>% 
+  dplyr::mutate(WT = 70) #exp(rnorm(n(),log(70),0.3)
 simout <- modexprespsim %>%
   data_set(simdata) %>%
   carry.out(WT, DOSE, SEV) %>%
@@ -334,6 +333,11 @@ stdprobplot<- ggplot(iter_sims, aes(DOSE,P1,col=factor(SEV) ) )+
 stdprobplot
 
 ## ----fig.height= 7, collapse=TRUE---------------------------------------------
+TypicalProb <- iter_sims %>%
+  filter(ID==3) %>% 
+  summarize(medP1=median(P1)) %>% 
+  pull(medP1)
+
 iter_sims <- iter_sims %>%
   mutate(P1std=P1/TypicalProb)%>%
   gather(paramname,paramvalue,P1std)%>% 
@@ -389,7 +393,7 @@ ggplot(iter_sims,aes(x=paramvalue,y=covvalue))+
   theme_bw()+
   theme(axis.title = element_blank(),strip.placement = "outside")
 
-## ----plot3, collapse=TRUE-----------------------------------------------------
+## ----plot3, collapse=TRUE, fig.height=7, fig.width=9--------------------------
 coveffectsdatacovrep <- iter_sims %>%
   dplyr::group_by(paramname,ID,WT,DOSE,SEV,covname,covvalue) %>% 
   dplyr::summarize(
@@ -429,14 +433,13 @@ coveffectsdatacovrepbsv$label <-factor(as.factor(coveffectsdatacovrepbsv$label )
               "0 mg","25 mg","50 mg","100 mg","125 mg","150 mg",
               "Severe","70 kg\nNot Severe\n75 mg"
               ))
-    
-
 coveffectsdatacovrepbsv$covname <-factor(as.factor(coveffectsdatacovrepbsv$covname ),
                     levels = c("Weight","DOSE","SEV","REF","BSV"))
 
+
 ref_legend_text      <- "Reference (vertical line)"
-png("./Figure_8_4.png",width =9 ,height = 7,units = "in",res=72)
-forest_plot(coveffectsdatacovrepbsv,
+#png("./Figure_8_4.png",width =9 ,height = 7,units = "in",res=72)
+fpp <- forest_plot(coveffectsdatacovrepbsv,
                             strip_placement = "outside",
                             show_ref_area = FALSE,
                             show_ref_value=TRUE,
@@ -458,8 +461,8 @@ forest_plot(coveffectsdatacovrepbsv,
                             major_x_ticks          = c(0.1,0.25, 0.5,1,1.5),
                             x_range                = c(0.1, 1.5))
 
-dev.off()
-
+#dev.off()
+#![Covariate Effects Plot.](./Figure_8_4.png)
 
 ## ----plot4, collapse=TRUE, fig.height= 6, fig.width= 12-----------------------
 covcombdr <- expand.grid(

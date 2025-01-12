@@ -258,65 +258,65 @@ png("./coveffectsplot.png",width =9 ,height = 6,units = "in",res=72)
 dev.off()
 
 ## ----fig.width=7 ,eval=FALSE--------------------------------------------------
-#  
-#    plotdata<- plotdata[ c(3,2,1,4,5,6),]
-#    plotly::plot_ly(plotdata) %>%
-#    plotly::add_segments(
-#    x = ~ round(lower, 2),
-#    xend = ~ round(upper, 2),
-#    y = ~ label,
-#    yend = ~ label,
-#    name = '90%CI',
-#    line = list(color = plotly::toRGB("blue", alpha = 0.5), width = 5),
-#    hoverinfo = "text",
-#    text = ~ paste("</br> 90%CI: ",
-#    paste(round(lower, 2), round(upper, 2)))
-#    ) %>%
-#    plotly::add_markers(
-#    x = ~ round(mid, 2),
-#    y = ~ label,
-#    name = "Median",
-#    marker  = list(
-#    color = plotly::toRGB("black", alpha = 0.3),
-#    size = 20,
-#    symbol = "diamond"
-#    ),
-#    hoverinfo = "text",
-#    text = ~ paste("</br> Median: ",
-#    paste(round(mid, 2)))
-#    ) %>%
-#    plotly::layout(
-#    xaxis = list(
-#    title = 'Effects Relative to Reference',
-#    ticks = "outside",
-#    autotick = TRUE,
-#    ticklen = 5,
-#    gridcolor = plotly::toRGB("gray50"),
-#    showline = TRUE
-#    ) ,
-#    yaxis = list (
-#    title = '' ,
-#    autorange = TRUE,
-#    type = "category",
-#    categoryorder = "trace",
-#    ticks = "outside",
-#    autotick = TRUE,
-#    ticklen = 5,
-#    gridcolor = plotly::toRGB("gray50"),
-#    showline = TRUE
-#    ),
-#       shapes =list(
-#        type = "rect",
-#        x0 = 0.8,
-#        x1 = 1.25,
-#        xref = "x",
-#        yref = "paper",
-#        y0 = 0,
-#        y1 = 1,
-#        line = list(width = 0),
-#        fillcolor =  plotly::toRGB("black", alpha = 0.2)
-#    )
-#    )
+# 
+#   plotdata<- plotdata[ c(3,2,1,4,5,6),]
+#   plotly::plot_ly(plotdata) %>%
+#   plotly::add_segments(
+#   x = ~ round(lower, 2),
+#   xend = ~ round(upper, 2),
+#   y = ~ label,
+#   yend = ~ label,
+#   name = '90%CI',
+#   line = list(color = plotly::toRGB("blue", alpha = 0.5), width = 5),
+#   hoverinfo = "text",
+#   text = ~ paste("</br> 90%CI: ",
+#   paste(round(lower, 2), round(upper, 2)))
+#   ) %>%
+#   plotly::add_markers(
+#   x = ~ round(mid, 2),
+#   y = ~ label,
+#   name = "Median",
+#   marker  = list(
+#   color = plotly::toRGB("black", alpha = 0.3),
+#   size = 20,
+#   symbol = "diamond"
+#   ),
+#   hoverinfo = "text",
+#   text = ~ paste("</br> Median: ",
+#   paste(round(mid, 2)))
+#   ) %>%
+#   plotly::layout(
+#   xaxis = list(
+#   title = 'Effects Relative to Reference',
+#   ticks = "outside",
+#   autotick = TRUE,
+#   ticklen = 5,
+#   gridcolor = plotly::toRGB("gray50"),
+#   showline = TRUE
+#   ) ,
+#   yaxis = list (
+#   title = '' ,
+#   autorange = TRUE,
+#   type = "category",
+#   categoryorder = "trace",
+#   ticks = "outside",
+#   autotick = TRUE,
+#   ticklen = 5,
+#   gridcolor = plotly::toRGB("gray50"),
+#   showline = TRUE
+#   ),
+#      shapes =list(
+#       type = "rect",
+#       x0 = 0.8,
+#       x1 = 1.25,
+#       xref = "x",
+#       yref = "paper",
+#       y0 = 0,
+#       y1 = 1,
+#       line = list(width = 0),
+#       fillcolor =  plotly::toRGB("black", alpha = 0.2)
+#   )
+#   )
 
 ## ----dpi = 72-----------------------------------------------------------------
 png("./coveffectsplot2.png",width =9 ,height = 6,units = "in",res=72)
@@ -333,6 +333,7 @@ png("./coveffectsplot2.png",width =9 ,height = 6,units = "in",res=72)
             facet_scales = "free",
             facet_space = "fixed",
             paramname_shape = FALSE,
+            combine_interval_shape_legend = TRUE,
             table_position = "right",
             table_text_size = 4,
             plot_table_ratio = 4,

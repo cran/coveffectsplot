@@ -1,4 +1,5 @@
 #' @importFrom colourpicker colourInput
+#' @importFrom stats deriv
 # ' @importFrom ggplot2 translate_shape_string not yet
 
 # Same as base R `which()` function, but return 0 instead of an empty vector
@@ -1139,6 +1140,11 @@ forest_plot <- function(
           axis.ticks.y = ggplot2::element_blank()
         )
     }
+    if (show_table_yaxis_tick_label && break_ylabel) {
+      table_plot <- table_plot +
+        ggplot2::scale_y_discrete(labels = label_wrap(y_label_text_width)) 
+    }
+    
     if (!reserve_table_xaxis_label_space) {
       table_plot <- table_plot +
         ggplot2::theme(
@@ -1196,10 +1202,6 @@ forest_plot <- function(
           )
       }    
       
-      if (break_ylabel) {
-        table_plot <- table_plot +
-          ggplot2::scale_y_discrete(labels = label_wrap(y_label_text_width)) 
-      }
     }
   }
 

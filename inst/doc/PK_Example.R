@@ -566,8 +566,7 @@ area_legend_text     <- "Reference (vertical line)\nClinically relevant limits\n
 
 png("./Figure4_6.png",width =9 ,height = 6,units = "in",res=72)
 coveffectsplot::forest_plot(fpdata[paramname=="AUC" & 
-                                     covname!="Reference" &
-                                     covname!="BSV",],
+                                     covname!="Reference",],
                             ref_area               = c(0.8, 1/0.8),
                             x_range                = c(0.5, 2),
                             strip_placement        = "inside",
@@ -585,6 +584,7 @@ coveffectsplot::forest_plot(fpdata[paramname=="AUC" &
                             facet_scales           = "free_y",
                             facet_space            = "free",
                             paramname_shape        = FALSE,
+                            legend_order =c("pointinterval","ref", "area"),
                             table_position         = "right",
                             table_text_size        = 4,
                             plot_table_ratio       = 3,
@@ -631,10 +631,8 @@ png("./coveffectsplot0.png",width = 9 ,height = 6,units = "in",res=72)
 plotlists <- coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             ref_area = c(0.8, 1/0.8),
                             xlabel = "Fold Change Relative to Reference",
-                            ref_legend_text = "Reference (vertical line)\nClinically
-                            relevant limits\n(gray area)",
-                            area_legend_text = "Reference (vertical line)\nClinically
-                            relevant limits\n(gray area)",
+                            ref_legend_text  = "Reference (vertical line)\nClinically relevant limits\n(gray area)",
+                            area_legend_text = "Reference (vertical line)\nClinically relevant limits\n(gray area)",
                             interval_legend_text = interval_legend_text,
                             plot_title             = "",
                             interval_bsv_text = interval_bsv_text,
@@ -643,6 +641,7 @@ plotlists <- coveffectsplot::forest_plot(fpdata[paramname=="AUC"],
                             facet_scales = "free_y",
                             facet_space = "free",
                             paramname_shape = FALSE,
+                            combine_interval_shape_legend = TRUE,
                             table_position = "right",
                             table_text_size=4,
                             plot_table_ratio = 4,
